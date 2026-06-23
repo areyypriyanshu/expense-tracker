@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Exclude sensitive financial data from cloud backups -->
+    <exclude domain="database" path="." />
+    <exclude domain="sharedpref" path="upi_sync_prefs.xml" />
+    <exclude domain="sharedpref" path="secure_preferences.xml" />
+    <exclude domain="file" path="datastore/" />
+</full-backup-content>

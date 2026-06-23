@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Expense Tracker</string>
+    <string name="widget_description">Quick add expenses from your home screen</string>
+    <string name="widget_name">Expense Tracker</string>
+    <string name="permission_add_expense_desc">Required to add expenses from the home screen widget</string>
+</resources>

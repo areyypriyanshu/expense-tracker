@@ -1,0 +1,34 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Safe-zone background for legacy renderers. Adaptive icons use ic_launcher_background. -->
+    <path
+        android:fillColor="#0F3D34"
+        android:pathData="M0,0h108v108h-108z"/>
+
+    <!-- Clean circular finance badge. -->
+    <path
+        android:fillColor="#F6F3EA"
+        android:pathData="M54,54m-28,0a28,28 0,1 0,56 0a28,28 0,1 0,-56 0"/>
+
+    <!-- Subtle lower shade keeps the circle readable on small launchers. -->
+    <path
+        android:fillColor="#D9D3C3"
+        android:pathData="M31.5,70c5,7.3 13.2,12 22.5,12c9.3,0 17.5,-4.7 22.5,-12c-5.7,3.3 -13.3,5.2 -22.5,5.2s-16.8,-1.9 -22.5,-5.2z"/>
+
+    <!-- Minimal rupee monogram. -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:pathData="M42,39h26M42,47h22M42,39c9,0 14,4 14,10.5c0,7 -5.2,11 -14,11l19,18"
+        android:strokeColor="#0F3D34"
+        android:strokeWidth="4.5"
+        android:strokeLineCap="round"/>
+
+    <!-- Small balance accent. -->
+    <path
+        android:fillColor="#DFAF3F"
+        android:pathData="M70,38m-4,0a4,4 0,1 0,8 0a4,4 0,1 0,-8 0"/>
+</vector>
