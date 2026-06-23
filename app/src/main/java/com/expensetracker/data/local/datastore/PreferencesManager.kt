@@ -7,6 +7,7 @@ import android.security.keystore.KeyProperties
 import android.util.Base64
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -65,6 +66,7 @@ class PreferencesManager(private val context: Context) {
     private object Keys {
         val BASE_CURRENCY = stringPreferencesKey("base_currency")
         val THEME = stringPreferencesKey("theme")
+        val HAS_SEEN_UPI_PERMISSION_PROMPT = booleanPreferencesKey("has_seen_upi_permission_prompt")
     }
 
     val userPreferences: Flow<UserPreference> = dataStore.data.map { prefs ->
@@ -75,6 +77,10 @@ class PreferencesManager(private val context: Context) {
             baseCurrency = currency ?: getSystemDefaultCurrency(),
             theme = theme ?: "system"
         )
+    }
+
+    val hasSeenUpiPermissionPrompt: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[Keys.HAS_SEEN_UPI_PERMISSION_PROMPT] ?: false
     }
 
     private fun getSystemDefaultCurrency(): String {
@@ -110,6 +116,12 @@ class PreferencesManager(private val context: Context) {
             dataStore.edit { prefs ->
                 prefs[Keys.THEME] = sanitizedTheme
             }
+        }
+    }
+
+    suspend fun markUpiPermissionPromptSeen() {
+        dataStore.edit { prefs ->
+            prefs[Keys.HAS_SEEN_UPI_PERMISSION_PROMPT] = true
         }
     }
 

@@ -1,5 +1,7 @@
 package com.expensetracker.ui.navigation
 
+import android.Manifest
+import android.content.pm.PackageManager
 import androidx.compose.animation.*
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Box
@@ -14,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -45,6 +48,7 @@ import com.expensetracker.ui.screens.transaction.AddTransactionViewModel
 import com.expensetracker.ui.screens.transaction.TransactionsScreen
 import com.expensetracker.ui.screens.transaction.TransactionsViewModel
 import com.expensetracker.ui.theme.MotionTokens
+import kotlinx.coroutines.launch
 
 sealed class Screen(
     val route: String,
@@ -81,9 +85,20 @@ fun ExpenseTrackerApp(
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
+    val coroutineScope = rememberCoroutineScope()
+    val hasSeenUpiPermissionPrompt by preferencesManager.hasSeenUpiPermissionPrompt.collectAsState(initial = false)
+    val hasSmsPermission = ContextCompat.checkSelfPermission(
+        context,
+        Manifest.permission.READ_SMS
+    ) == PackageManager.PERMISSION_GRANTED
+    var showUpiPermissionPrompt by remember { mutableStateOf(false) }
 
     val showBottomBar = Screen.bottomNavItems.any { screen ->
         currentDestination?.hierarchy?.any { it.route == screen.route } == true
+    }
+
+    LaunchedEffect(hasSeenUpiPermissionPrompt, hasSmsPermission) {
+        showUpiPermissionPrompt = !hasSeenUpiPermissionPrompt && !hasSmsPermission
     }
 
     Scaffold(
@@ -163,6 +178,62 @@ fun ExpenseTrackerApp(
             )
         }
     }
+
+    if (showUpiPermissionPrompt && currentDestination?.route != Screen.UpiSync.route) {
+        UpiPermissionOnboardingDialog(
+            onGoToSetup = {
+                showUpiPermissionPrompt = false
+                coroutineScope.launch {
+                    preferencesManager.markUpiPermissionPromptSeen()
+                }
+                navController.navigate(Screen.UpiSync.route) {
+                    launchSingleTop = true
+                }
+            },
+            onDismiss = {
+                showUpiPermissionPrompt = false
+                coroutineScope.launch {
+                    preferencesManager.markUpiPermissionPromptSeen()
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun UpiPermissionOnboardingDialog(
+    onGoToSetup: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                imageVector = Icons.Filled.Sync,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
+        },
+        title = {
+            Text("Enable UPI Auto-Sync")
+        },
+        text = {
+            Text(
+                "To show your UPI transactions automatically, grant SMS permission from the UPI Auto-Sync screen. Your messages stay on this device."
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onGoToSetup) {
+                Text("Open UPI Auto-Sync")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Not Now")
+            }
+        },
+        shape = MaterialTheme.shapes.medium
+    )
 }
 
 @Composable

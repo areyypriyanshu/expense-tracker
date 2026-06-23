@@ -8,6 +8,7 @@ A modern, minimalist, and intelligent expense-tracking application built for And
 
 ### 1. 📬 Automated UPI SMS Syncing
 Automatically syncs transactions by parsing incoming transactional SMS messages (specifically tailored for Indian banking UPI formats).
+* **First-Launch Setup Prompt:** On first app launch, users are guided to the UPI Auto-Sync setup screen if SMS permission has not been granted yet.
 * **Local Parsing:** The `UpiSmsParser` uses regex patterns and keyword matchers to extract transaction type (debit/credit), amount, merchant, UPI ID, reference number, and date.
 * **Background Sync:** Utilizing Jetpack **WorkManager**, a background worker (`UpiSyncWorker`) runs periodic sync cycles (every 6 hours) to automatically check new SMS notifications and log transactions.
 * **Auto-Categorization:** Uses keyword heuristics (e.g., `swiggy` $\rightarrow$ "Food & Dining", `uber` $\rightarrow$ "Transportation") to group expenses.
@@ -92,6 +93,8 @@ app/src/main/java/com/expensetracker/
 To support its offline-automation capabilities, the app requests the following Android runtime permissions:
 * `android.permission.READ_SMS`: Required to parse UPI transactional SMS.
 * `android.permission.POST_NOTIFICATIONS`: Required for budget warnings and sync alerts on Android 13+ (API 33).
+
+On first launch, the app shows a one-time prompt that sends users to **UPI Auto-Sync** to grant SMS access. Users can skip it and return later from Settings.
 
 ---
 

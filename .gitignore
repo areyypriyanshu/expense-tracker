@@ -34,5 +34,5 @@ captures/
 # Project specific exclusions
 expense_tracker_markdown_pack/
 .opencode/
-graphify-out/
 AGENTS.md
+graphify-out/.rebuild.lock
