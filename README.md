@@ -117,5 +117,4 @@ To support its offline-automation capabilities, the app requests the following A
 ## 📄 License
 
 This project is licensed under the Apache License 2.0. See the `LICENSE` file for details.
-# expense-tracker
-# expense-tracker
+
