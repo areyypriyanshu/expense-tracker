@@ -40,12 +40,18 @@ fun ReportsScreen(
     LaunchedEffect(uiState.exportResult) {
         val result = uiState.exportResult
         if (result is ExportResult.Success) {
-            val file = File(result.filePath)
-            if (file.exists()) {
-                val shareIntent = ExportService(context).shareFile(file)
-                context.startActivity(Intent.createChooser(shareIntent, "Share Report"))
+            try {
+                val file = File(result.filePath)
+                if (file.exists()) {
+                    val shareIntent = ExportService(context).shareFile(file)
+                    context.startActivity(Intent.createChooser(shareIntent, "Share Report"))
+                    viewModel.clearExportResult()
+                } else {
+                    viewModel.showExportError("Exported file was not found")
+                }
+            } catch (e: Exception) {
+                viewModel.showExportError("Couldn't open the exported report")
             }
-            viewModel.clearExportResult()
         }
     }
 

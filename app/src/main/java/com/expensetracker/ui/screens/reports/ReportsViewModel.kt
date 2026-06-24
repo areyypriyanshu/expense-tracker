@@ -137,6 +137,10 @@ class ReportsViewModel(
         _uiState.update { it.copy(exportResult = null) }
     }
 
+    fun showExportError(message: String) {
+        _uiState.update { it.copy(isExporting = false, exportResult = ExportResult.Error(message)) }
+    }
+
     class Factory(private val database: ExpenseDatabase, private val context: Context) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {

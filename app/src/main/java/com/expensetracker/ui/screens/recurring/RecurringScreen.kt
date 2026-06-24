@@ -2,10 +2,13 @@ package com.expensetracker.ui.screens.recurring
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -15,9 +18,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.expensetracker.ExpenseTrackerApp
+import com.expensetracker.data.model.RecurringFrequency
 import com.expensetracker.data.model.RecurringRule
 import com.expensetracker.services.currency.CurrencyService
 import com.expensetracker.ui.components.EmptyState
@@ -35,6 +40,13 @@ fun RecurringScreen(
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        floatingActionButton = {
+            if (!uiState.isLoading) {
+                FloatingActionButton(onClick = { viewModel.showAddDialog() }) {
+                    Icon(Icons.Default.Add, contentDescription = "Add recurring")
+                }
+            }
+        },
         topBar = {
             TopAppBar(
                 windowInsets = WindowInsets(0, 0, 0, 0),
@@ -92,6 +104,192 @@ fun RecurringScreen(
             }
         }
     }
+
+    if (uiState.showAddDialog) {
+        AddRecurringDialog(
+            baseCurrency = uiState.baseCurrency,
+            onDismiss = viewModel::hideAddDialog,
+            onAdd = viewModel::addRule
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AddRecurringDialog(
+    baseCurrency: String,
+    onDismiss: () -> Unit,
+    onAdd: (Double, String, String, String, RecurringFrequency) -> Unit
+) {
+    var amount by remember { mutableStateOf("") }
+    var currency by remember(baseCurrency) { mutableStateOf(baseCurrency) }
+    var category by remember { mutableStateOf("Bills & Utilities") }
+    var note by remember { mutableStateOf("") }
+    var frequency by remember { mutableStateOf(RecurringFrequency.MONTHLY) }
+    var amountError by remember { mutableStateOf(false) }
+    var categoryExpanded by remember { mutableStateOf(false) }
+    var currencyExpanded by remember { mutableStateOf(false) }
+    var frequencyExpanded by remember { mutableStateOf(false) }
+
+    val categories = listOf(
+        "Bills & Utilities",
+        "Subscriptions",
+        "Rent",
+        "Transportation",
+        "Healthcare",
+        "Education",
+        "Personal Care",
+        "Other"
+    )
+
+    StyledAlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add Recurring", fontWeight = FontWeight.SemiBold) },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 520.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedTextField(
+                    value = amount,
+                    onValueChange = {
+                        amount = it.filter { char -> char.isDigit() || char == '.' }
+                        amountError = false
+                    },
+                    label = { Text("Amount") },
+                    singleLine = true,
+                    isError = amountError,
+                    supportingText = if (amountError) {
+                        { Text("Enter a valid amount") }
+                    } else {
+                        null
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                ExposedDropdownMenuBox(
+                    expanded = currencyExpanded,
+                    onExpandedChange = { currencyExpanded = !currencyExpanded }
+                ) {
+                    OutlinedTextField(
+                        value = currency,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Currency") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = currencyExpanded) },
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = currencyExpanded,
+                        onDismissRequest = { currencyExpanded = false }
+                    ) {
+                        CurrencyService.SUPPORTED_CURRENCIES.take(10).forEach { item ->
+                            DropdownMenuItem(
+                                text = { Text("${item.code} - ${item.name}") },
+                                onClick = {
+                                    currency = item.code
+                                    currencyExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                ExposedDropdownMenuBox(
+                    expanded = categoryExpanded,
+                    onExpandedChange = { categoryExpanded = !categoryExpanded }
+                ) {
+                    OutlinedTextField(
+                        value = category,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Category") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryExpanded) },
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = categoryExpanded,
+                        onDismissRequest = { categoryExpanded = false }
+                    ) {
+                        categories.forEach { item ->
+                            DropdownMenuItem(
+                                text = { Text(item) },
+                                onClick = {
+                                    category = item
+                                    categoryExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                OutlinedTextField(
+                    value = note,
+                    onValueChange = { note = it.take(200) },
+                    label = { Text("Note") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                ExposedDropdownMenuBox(
+                    expanded = frequencyExpanded,
+                    onExpandedChange = { frequencyExpanded = !frequencyExpanded }
+                ) {
+                    OutlinedTextField(
+                        value = frequency.name.lowercase().replaceFirstChar { it.uppercase() },
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Frequency") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = frequencyExpanded) },
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = frequencyExpanded,
+                        onDismissRequest = { frequencyExpanded = false }
+                    ) {
+                        RecurringFrequency.entries.forEach { item ->
+                            DropdownMenuItem(
+                                text = { Text(item.name.lowercase().replaceFirstChar { it.uppercase() }) },
+                                onClick = {
+                                    frequency = item
+                                    frequencyExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val parsedAmount = amount.toDoubleOrNull()
+                    if (parsedAmount == null || parsedAmount <= 0.0) {
+                        amountError = true
+                        return@TextButton
+                    }
+                    onAdd(parsedAmount, currency, category, note, frequency)
+                }
+            ) {
+                Text("Add")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
 
 @Composable

@@ -194,8 +194,9 @@ class ExportService(private val context: Context) {
     }
 
     private fun getExportDirectory(): File {
-        val directory = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
+        val documentsDir = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
             ?: File(context.filesDir, "Documents")
+        val directory = File(documentsDir, EXPORT_DIRECTORY_NAME)
         if (!directory.exists()) {
             directory.mkdirs()
         }
@@ -204,6 +205,7 @@ class ExportService(private val context: Context) {
 
     private companion object {
         private const val MAX_CSV_FIELD_LENGTH = 500
+        private const val EXPORT_DIRECTORY_NAME = "exports"
         private val CSV_FORMULA_PREFIXES = setOf('=', '+', '-', '@', '\t', '\r', '\n')
         private val ALLOWED_EXTENSIONS = setOf("csv", "pdf")
     }

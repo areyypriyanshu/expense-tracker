@@ -36,13 +36,16 @@ class RecurringViewModel(
                 recurringRuleRepository.getAllRecurringRules(),
                 preferencesManager.userPreferences
             ) { rules, preferences ->
-                RecurringUiState(
-                    recurringRules = rules,
-                    baseCurrency = preferences.baseCurrency,
-                    isLoading = false
-                )
+                rules to preferences
             }.collect { state ->
-                _uiState.value = state
+                val (rules, preferences) = state
+                _uiState.update {
+                    it.copy(
+                        recurringRules = rules,
+                        baseCurrency = preferences.baseCurrency,
+                        isLoading = false
+                    )
+                }
             }
         }
     }
