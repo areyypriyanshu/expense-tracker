@@ -13,12 +13,15 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.expensetracker.data.model.Transaction
 import com.expensetracker.services.currency.CurrencyService
 import com.expensetracker.ui.components.*
 import com.expensetracker.ui.theme.*
@@ -33,6 +36,7 @@ fun TransactionsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showFilters by remember { mutableStateOf(false) }
+    var transactionToDelete by remember { mutableStateOf<Transaction?>(null) }
     
     val greeting = when (LocalTime.now().hour) {
         in 5..11 -> "Good Morning"
@@ -142,12 +146,37 @@ fun TransactionsScreen(
                     ) { transaction ->
                         TransactionItem(
                             transaction = transaction,
-                            onClick = { onTransactionClick(transaction.id) }
+                            onClick = { onTransactionClick(transaction.id) },
+                            onDelete = { transactionToDelete = transaction }
                         )
                     }
 
                 }
             }
+        }
+        
+        if (transactionToDelete != null) {
+            StyledAlertDialog(
+                onDismissRequest = { transactionToDelete = null },
+                title = { Text("Delete Transaction") },
+                text = { Text("Are you sure you want to delete this transaction? This action cannot be undone.") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            viewModel.deleteTransaction(transactionToDelete!!)
+                            transactionToDelete = null
+                        }
+                    ) {
+                        Text("Delete", color = MaterialTheme.colorScheme.error)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { transactionToDelete = null }) {
+                        Text("Cancel")
+                    }
+                },
+                icon = { Icon(Icons.Default.Delete, contentDescription = null) }
+            )
         }
     }
 }
