@@ -2,6 +2,7 @@
 <data-extraction-rules>
     <cloud-backup>
         <!-- Exclude sensitive financial data from cloud backups -->
+        <include domain="database" path="." />
         <exclude domain="database" path="." />
         <include domain="sharedpref" path="." />
         <exclude domain="sharedpref" path="upi_sync_prefs.xml" />
