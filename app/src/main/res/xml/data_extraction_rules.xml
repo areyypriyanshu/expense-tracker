@@ -3,7 +3,9 @@
     <cloud-backup>
         <!-- Exclude sensitive financial data from cloud backups -->
         <include domain="database" path="." />
-        <exclude domain="database" path="." />
+        <exclude domain="database" path="expense_database" />
+        <exclude domain="database" path="expense_database-wal" />
+        <exclude domain="database" path="expense_database-shm" />
         <include domain="sharedpref" path="." />
         <exclude domain="sharedpref" path="upi_sync_prefs.xml" />
         <exclude domain="sharedpref" path="secure_preferences.xml" />
