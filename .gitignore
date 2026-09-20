@@ -36,3 +36,13 @@ expense_tracker_markdown_pack/
 .opencode/
 AGENTS.md
 graphify-out/.rebuild.lock
+
+# Local Gradle cache
+.gradle_home/
+
+# Local OCR test files
+receipts/
+IndianReceiptDataset/
+
+# Temporary OCR debug script
+run_ocr.ps1
