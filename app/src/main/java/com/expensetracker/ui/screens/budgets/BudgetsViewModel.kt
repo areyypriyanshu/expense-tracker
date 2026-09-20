@@ -89,7 +89,7 @@ class BudgetsViewModel(
     }
 
     fun addBudget(category: String, limit: Double, period: BudgetPeriod, threshold: Float) {
-        val sanitizedCategory = category.take(50).filter { it.isLetterOrDigit() || it.isWhitespace() }.trim()
+        val sanitizedCategory = category.take(50).filter { it.isLetterOrDigit() || it.isWhitespace() || it == '&' }.trim()
         val validatedLimit = limit.coerceIn(0.01, 1_000_000_000.0)
         val validatedThreshold = threshold.coerceIn(0f, 1f)
         
