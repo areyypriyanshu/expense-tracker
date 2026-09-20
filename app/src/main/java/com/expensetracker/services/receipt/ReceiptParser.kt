@@ -31,7 +31,8 @@ object ReceiptParser {
     )
 
     private val unrelatedLinePattern = Regex(
-        "(?i)\\b(?:tax|cgst|sgst|igst|gst|vat|cess|service\\s+tax|service\\s+charge|service\\s+charges|discount|subtotal|sub-?|gross\\s+total|qty|quantity|items?|item)\\b"
+        "\\b(?:tax|cgst|sgst|igst|gst|vat|cess|service\\s+tax|service\\s+charge|service\\s+charges|discount|subtotal|sub-?|gross\\s+total|qty|quantity|items?|item)\\b",
+        RegexOption.IGNORE_CASE
     )
 
     private val genericTotalExclusions = listOf(
@@ -39,7 +40,10 @@ object ReceiptParser {
         Regex("\\btotal\\s*[:=-]?\\s*(?:tax|cgst|sgst|igst|gst|vat|cess|discount|disc|savings?|saved|qty|quantity|items?|pcs|pieces|count|units?|gross)\\b", RegexOption.IGNORE_CASE),
         Regex("\\b(?:qty|quantity|items?|pcs|pieces|count)\\s*[:=-]?\\s*\\d", RegexOption.IGNORE_CASE),
         Regex("\\btotal\\s+(?:no\\.?\\s+of\\s+)?(?:items?|qty|quantity|pcs|pieces|units?)\\b", RegexOption.IGNORE_CASE),
-        Regex("\\b(?:vat|gst|cgst|sgst|igst|service\\s+tax|service\\s+charge|service\\s+charges|discount|subtotal|sub-total|gross\\s+total)\\b", RegexOption.IGNORE_CASE)
+        Regex("\\b(?:vat|gst|cgst|sgst|igst|service\\s+tax|service\\s+charge|service\\s+charges|discount|subtotal|sub-total|gross\\s+total)\\b", RegexOption.IGNORE_CASE),
+        Regex("\\btotal\\s+qty\\b", RegexOption.IGNORE_CASE),
+        Regex("\\btotal\\s+items?\\b", RegexOption.IGNORE_CASE),
+        Regex("\\btax\\s+total\\b", RegexOption.IGNORE_CASE)
     )
     // Matches Indian format (1,23,456.50), standard (1,234,567.50), and corrupted currency symbols glued to digits
     private val moneyPattern = Regex(
@@ -96,11 +100,7 @@ object ReceiptParser {
 
             if (candidates.size == 1) return candidates.single()
             if (candidates.size > 1) {
-                if (label.isGeneric) {
-                    return candidates.last()
-                } else {
-                    return null
-                }
+                return null
             }
         }
 
@@ -130,7 +130,15 @@ object ReceiptParser {
             it.contains("items purchased", ignoreCase = true) ||
             it.contains("cashier", ignoreCase = true)
         }
-        val hasGrandTotalKeyword = lines.any { Regex("(?i)\\b(?:bill\\s+total|grand\\s+total|net\\s+amount|mrp\\s+total|total)\\b").containsMatchIn(it) }
+        val hasGrandTotalKeyword = lines.any { line ->
+            val matchesKeyword = Regex("(?i)\\b(?:bill\\s+total|grand\\s+total|net\\s+total|net\\s+amount|mrp\\s+total|invoice\\s+total|amount\\s+due|payable|final\\s+amount|total)\\b").containsMatchIn(line)
+            val isExcluded = genericTotalExclusions.any { it.containsMatchIn(line) }
+            val isKeyword = matchesKeyword && !isExcluded
+            if (isKeyword) {
+                println("DEBUG: POS Fallback Keyword Matched: $line")
+            }
+            isKeyword
+        }
         if (hasPosSignature && hasGrandTotalKeyword) {
             val allAmounts = lines.flatMap { findAmounts(it) }.map { it.value }
             if (allAmounts.isNotEmpty()) {
@@ -273,11 +281,12 @@ object ReceiptParser {
         val value = line.lowercase(Locale.ROOT)
         return listOf(
             "tax invoice", "retail invoice", "cash receipt", "bill of supply",
-            "invoice no", "receipt no", "gstin", "gst no", "cashier",
+            "invoice no", "receipt no", "gstin", "gst no", "cashier", "tax:", "item:",
             "table no", "table:", "bill no", "order no", "subtotal", "grand total", "amount due",
             "net total", "payable", "thank you", "date", "http", "www.", "@",
             "welcome to", "customer copy", "original copy", "duplicate copy",
             "name:", "service rd", "layout", "banaswadi", "bengaluru", "karnataka",
+            "tax", "item",
             "invoice no:", "time:", "mode:", "cash", "card", "gst no:",
             "total", "item", "price", "qty", "quantity", "rate", "amount"
         ).any(value::contains) || Regex("\\b(?:gst|pan)[a-z0-9-]*\\b", RegexOption.IGNORE_CASE).containsMatchIn(value)
@@ -286,7 +295,7 @@ object ReceiptParser {
     private fun looksLikeAddressOrProduct(line: String, nextLine: String? = null): Boolean {
         val value = line.lowercase(Locale.ROOT)
         val address = Regex("\\b(?:road|rd|street|st|lane|nagar|building|floor|near|opp|plot|pin|layout|bengaluru|bangalore|mumbai|delhi|karnataka)\\b")
-        val product = Regex("\\b(?:qty|quantity|pcs?|kg|g|ltr|ml|rate|hsn|item|items|price|amount|hsn|hsn/sec)\\b")
+        val product = Regex("\\b(?:qty|quantity|pcs?|kg|g|ltr|ml|rate|hsn|item|items|price|amount|hsn|hsn/sec|mutton|biriyani|roti|chicken|rice|dal|paneer|soup|curry|fish|noodles|masala|tandoori|paratha|naan|gobhi|veg|freshener|drink|poha|chana)\\b")
         val phone = Regex("(?:\\+?91[- ]?)?\\d[\\d -]{7,}\\d")
 
         val isFollowedByItemDetail = nextLine != null && Regex("^\\d+\\s*[@x/]|\\d+\\s*(?:ea|rs|₹)").containsMatchIn(nextLine.lowercase(Locale.ROOT))
