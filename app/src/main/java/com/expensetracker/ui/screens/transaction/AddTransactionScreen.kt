@@ -1,5 +1,9 @@
 package com.expensetracker.ui.screens.transaction
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
@@ -24,6 +28,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.SoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
@@ -32,6 +37,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import com.expensetracker.data.model.RecurringFrequency
 import com.expensetracker.services.currency.CurrencyService
 import com.expensetracker.ui.components.StyledAlertDialog
@@ -45,6 +51,7 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,18 +63,49 @@ fun AddTransactionScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val keyboardController = LocalSoftwareKeyboardController.current
+    val context = LocalContext.current
     val focusRequester = remember { FocusRequester() }
     val scrollState = rememberScrollState()
     
     var showDatePicker by remember { mutableStateOf(false) }
     var showCurrencyPicker by remember { mutableStateOf(false) }
     var showMoreOptions by remember { mutableStateOf(false) }
+    var pendingReceiptFile by remember { mutableStateOf<File?>(null) }
+
+    val receiptCaptureLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { saved ->
+        val capturedFile = pendingReceiptFile
+        pendingReceiptFile = null
+        if (saved && capturedFile != null) {
+            val uri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                capturedFile
+            )
+            viewModel.scanReceipt(uri, capturedFile)
+        } else {
+            capturedFile?.delete()
+        }
+    }
+
+    val receiptPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        if (uri != null) viewModel.scanReceipt(uri)
+    }
 
     val isEditing = transactionId != null && transactionId > 0
 
     LaunchedEffect(Unit) {
         if (!isEditing) {
             focusRequester.requestFocus()
+        }
+    }
+
+    LaunchedEffect(uiState.receiptReviewPending) {
+        if (uiState.receiptReviewPending) {
+            showMoreOptions = true
         }
     }
 
@@ -114,6 +152,42 @@ fun AddTransactionScreen(
                 GreetingCard()
             }
 
+            ReceiptScanActions(
+                isScanning = uiState.isScanningReceipt,
+                message = uiState.receiptScanMessage,
+                isError = uiState.receiptScanIsError,
+                onDismissMessage = viewModel::clearReceiptScanMessage,
+                onScanReceipt = {
+                    try {
+                        val file = createReceiptImageFile(context)
+                        pendingReceiptFile = file
+                        val uri = FileProvider.getUriForFile(
+                            context,
+                            "${context.packageName}.fileprovider",
+                            file
+                        )
+                        receiptCaptureLauncher.launch(uri)
+                    } catch (_: Exception) {
+                        pendingReceiptFile?.delete()
+                        pendingReceiptFile = null
+                        viewModel.showReceiptScanError("Could not open the camera. Please choose an image instead.")
+                    }
+                },
+                onChooseImage = {
+                    receiptPickerLauncher.launch(
+                        PickVisualMediaRequest(
+                            ActivityResultContracts.PickVisualMedia.ImageOnly
+                        )
+                    )
+                }
+            )
+
+            if (uiState.receiptReviewPending) {
+                OcrReviewBanner(
+                    onReject = viewModel::rejectReceiptScan
+                )
+            }
+
             AmountInput(
                 amount = uiState.amount,
                 currency = uiState.currency,
@@ -143,7 +217,7 @@ fun AddTransactionScreen(
                 onCategorySelected = viewModel::onCategoryChange,
                 onCategoryAndSave = { category ->
                     viewModel.onCategoryChange(category)
-                    if (!isEditing && uiState.amount.isNotEmpty()) {
+                    if (!isEditing && uiState.amount.isNotEmpty() && !uiState.receiptReviewPending) {
                         keyboardController?.hide()
                         viewModel.saveTransaction(onSaveSuccess)
                     }
@@ -186,6 +260,7 @@ fun AddTransactionScreen(
             SaveButton(
                 isEditing = isEditing,
                 isLoading = uiState.isLoading,
+                isScanning = uiState.isScanningReceipt,
                 hasAmount = uiState.amount.isNotEmpty() && uiState.amount.toDoubleOrNull() != null && uiState.amount.toDouble() > 0,
                 onClick = {
                     keyboardController?.hide()
@@ -218,6 +293,98 @@ fun AddTransactionScreen(
             onDismiss = { showCurrencyPicker = false }
         )
     }
+}
+
+@Composable
+private fun ReceiptScanActions(
+    isScanning: Boolean,
+    message: String?,
+    isError: Boolean,
+    onDismissMessage: () -> Unit,
+    onScanReceipt: () -> Unit,
+    onChooseImage: () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            OutlinedButton(
+                onClick = onScanReceipt,
+                enabled = !isScanning,
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Icon(Icons.Default.DocumentScanner, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Scan Receipt")
+            }
+            OutlinedButton(
+                onClick = onChooseImage,
+                enabled = !isScanning,
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Icon(Icons.Default.Image, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Choose Image")
+            }
+        }
+
+        if (isScanning) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    "Reading receipt…",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        if (message != null) {
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isError) {
+                        MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.55f)
+                    } else {
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+                    }
+                ),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        if (isError) Icons.Default.Error else Icons.Default.Info,
+                        contentDescription = null,
+                        tint = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        message,
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    IconButton(onClick = onDismissMessage, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Default.Close, contentDescription = "Dismiss receipt message", modifier = Modifier.size(18.dp))
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun createReceiptImageFile(context: android.content.Context): File {
+    val directory = File(context.cacheDir, "receipts")
+    if (!directory.exists() && !directory.mkdirs()) {
+        throw IllegalStateException("Unable to create receipt cache directory")
+    }
+    return File.createTempFile("receipt_", ".jpg", directory)
 }
 
 @Composable
@@ -847,9 +1014,47 @@ private fun ErrorMessage(message: String) {
 }
 
 @Composable
+private fun OcrReviewBanner(
+    onReject: () -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f)
+        ),
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "Review Scanned Receipt",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    "Receipt fields prefilled. Review merchant (note) and date below before saving.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            Spacer(Modifier.width(8.dp))
+            OutlinedButton(
+                onClick = onReject,
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text("Reject")
+            }
+        }
+    }
+}
+
+@Composable
 private fun SaveButton(
     isEditing: Boolean,
     isLoading: Boolean,
+    isScanning: Boolean,
     hasAmount: Boolean,
     onClick: () -> Unit
 ) {
@@ -858,7 +1063,7 @@ private fun SaveButton(
         modifier = Modifier
             .fillMaxWidth()
             .height(56.dp),
-        enabled = !isLoading && hasAmount,
+        enabled = !isLoading && !isScanning && hasAmount,
         shape = RoundedCornerShape(8.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = MaterialTheme.colorScheme.primary,

@@ -76,6 +76,10 @@ dependencies {
 
     implementation("com.patrykandpatrick.vico:compose-m3:1.14.0")
 
+    implementation("com.google.mlkit:text-recognition:16.0.1")
+
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+
+    testImplementation("junit:junit:4.13.2")
 }

@@ -308,7 +308,7 @@ fun AppNavHost(
                 onNavigateBack = { navController.popBackStack() },
                 onSaveSuccess = { navController.popBackStack() },
                 viewModel = androidx.lifecycle.viewmodel.compose.viewModel(
-                    factory = AddTransactionViewModel.Factory(database)
+                    factory = AddTransactionViewModel.Factory(database, context)
                 )
             )
         }

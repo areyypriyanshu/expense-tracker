@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
     <external-files-path name="documents" path="Documents/exports/" />
+    <cache-path name="receipt_images" path="receipts/" />
 </paths>
