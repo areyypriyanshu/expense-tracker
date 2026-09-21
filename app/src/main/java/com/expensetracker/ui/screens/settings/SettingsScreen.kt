@@ -30,6 +30,7 @@ fun SettingsScreen(
     onNavigateToReports: () -> Unit,
     onNavigateToImport: () -> Unit,
     onNavigateToUpiSync: () -> Unit,
+    onNavigateToChatbot: () -> Unit,
     viewModel: SettingsViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -63,6 +64,12 @@ fun SettingsScreen(
             }
 
             SettingsSection(title = "Features") {
+                SettingsItem(
+                    icon = Icons.Default.SmartToy,
+                    title = "Finance Assistant Chatbot",
+                    subtitle = "Ask questions about your expenses and budget",
+                    onClick = onNavigateToChatbot
+                )
                 SettingsItem(
                     icon = Icons.Default.Sync,
                     title = "UPI Auto-Sync",

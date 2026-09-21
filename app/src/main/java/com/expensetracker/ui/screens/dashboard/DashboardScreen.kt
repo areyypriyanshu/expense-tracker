@@ -34,6 +34,7 @@ fun DashboardScreen(
     onAddTransaction: () -> Unit,
     onViewAllTransactions: () -> Unit,
     onNavigateToAnalytics: () -> Unit,
+    onNavigateToChatbot: () -> Unit,
     viewModel: DashboardViewModel
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -54,7 +55,8 @@ fun DashboardScreen(
                 todaySpend = uiState.todaySpend,
                 weeklySpend = uiState.weeklySpend,
                 monthlySpend = uiState.monthlySpend,
-                onAddTransaction = onAddTransaction
+                onAddTransaction = onAddTransaction,
+                onNavigateToChatbot = onNavigateToChatbot
             )
         },
         floatingActionButton = {
@@ -168,7 +170,8 @@ private fun DashboardHeader(
     todaySpend: Double,
     weeklySpend: Double,
     monthlySpend: Double,
-    onAddTransaction: () -> Unit
+    onAddTransaction: () -> Unit,
+    onNavigateToChatbot: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -192,6 +195,18 @@ private fun DashboardHeader(
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            IconButton(
+                onClick = onNavigateToChatbot,
+                colors = IconButtonDefaults.iconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.SmartToy,
+                    contentDescription = "Finance Assistant",
+                    tint = MaterialTheme.colorScheme.primary
                 )
             }
         }

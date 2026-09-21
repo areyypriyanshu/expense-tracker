@@ -37,6 +37,8 @@ import com.expensetracker.ui.screens.recurring.RecurringScreen
 import com.expensetracker.ui.screens.recurring.RecurringViewModel
 import com.expensetracker.ui.screens.reports.ReportsScreen
 import com.expensetracker.ui.screens.reports.ReportsViewModel
+import com.expensetracker.ui.screens.chatbot.ChatbotScreen
+import com.expensetracker.ui.screens.chatbot.ChatbotViewModel
 import com.expensetracker.ui.screens.import.ImportScreen
 import com.expensetracker.ui.screens.import.ImportViewModel
 import com.expensetracker.ui.screens.upisync.UpiSyncScreen
@@ -66,6 +68,7 @@ sealed class Screen(
     data object Reports : Screen("reports", "Reports", Icons.Filled.Assessment, Icons.Outlined.Assessment)
     data object Import : Screen("import", "Import", Icons.Filled.FileUpload, Icons.Outlined.FileUpload)
     data object UpiSync : Screen("upi_sync", "UPI Sync", Icons.Filled.Sync, Icons.Outlined.Sync)
+    data object Chatbot : Screen("chatbot", "Assistant", Icons.Filled.SmartToy, Icons.Outlined.SmartToy)
 
     fun createRoute(transactionId: Long? = null): String {
         return if (transactionId != null) "add_transaction?transactionId=$transactionId" else "add_transaction"
@@ -256,6 +259,7 @@ fun AppNavHost(
                 onAddTransaction = { navController.navigate(Screen.AddTransaction.createRoute()) },
                 onViewAllTransactions = { navController.navigate(Screen.Transactions.route) },
                 onNavigateToAnalytics = { navController.navigate(Screen.Analytics.route) },
+                onNavigateToChatbot = { navController.navigate(Screen.Chatbot.route) },
                 viewModel = androidx.lifecycle.viewmodel.compose.viewModel(
                     factory = DashboardViewModel.Factory(database, preferencesManager)
                 )
@@ -294,6 +298,7 @@ fun AppNavHost(
                 onNavigateToReports = { navController.navigate(Screen.Reports.route) },
                 onNavigateToImport = { navController.navigate(Screen.Import.route) },
                 onNavigateToUpiSync = { navController.navigate(Screen.UpiSync.route) },
+                onNavigateToChatbot = { navController.navigate(Screen.Chatbot.route) },
                 viewModel = androidx.lifecycle.viewmodel.compose.viewModel(
                     factory = SettingsViewModel.Factory(preferencesManager)
                 )
@@ -345,6 +350,15 @@ fun AppNavHost(
                 onNavigateBack = { navController.popBackStack() },
                 viewModel = androidx.lifecycle.viewmodel.compose.viewModel(
                     factory = UpiSyncViewModel.Factory(database, context)
+                )
+            )
+        }
+
+        composable(Screen.Chatbot.route) {
+            ChatbotScreen(
+                onNavigateBack = { navController.popBackStack() },
+                viewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                    factory = ChatbotViewModel.Factory(database, preferencesManager)
                 )
             )
         }
