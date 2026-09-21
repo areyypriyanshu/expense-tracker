@@ -33,7 +33,13 @@ Logs international expenses with double-entry caching.
 * **Dynamic Conversions:** Records both the original currency and a converted amount in the user's base currency.
 * **Local Cache:** Stores conversion rates (`CurrencyRate`) locally to ensure conversion works fully offline.
 
-> Receipt scanning and voice input are paused for now. Their UI entry points, Android permissions, and OCR/camera/audio dependencies have been removed from the current build.
+### 6. 🧾 Receipt OCR Scanning
+Scan physical receipts and bills using your camera to automatically extract transaction details.
+* **ML Kit Text Recognition:** Uses Google ML Kit's on-device text recognition engine (`TextRecognition`) to extract raw text from receipt images — fully offline, no data leaves the device.
+* **Smart Receipt Parsing:** The `ReceiptParser` analyses the extracted text to identify the total amount, merchant name, transaction date, and currency. It handles a wide range of receipt formats including Indian POS layouts, GST invoices, and restaurant bills.
+* **Intelligent Total Detection:** Prioritises labelled totals in order (`Grand Total` → `Amount Due` → `Payable` → `Net Total` → `Total`) with exclusion rules to avoid picking up tax subtotals, item counts, or GST lines.
+* **Merchant & Date Extraction:** Scores candidate merchant name lines based on position, capitalisation, and business suffix keywords. Detects dates in multiple formats (`DD/MM/YYYY`, `DD-MMM-YYYY`, ISO, etc.) with ambiguity flagging.
+* **Multi-Currency Detection:** Automatically detects currency from symbols and keywords (`₹`, `Rs.`, `INR`, `$`, `€`, `£`) and falls back to the user's base currency.
 
 ---
 
@@ -108,7 +114,7 @@ On first launch, the app shows a one-time prompt that sends users to **UPI Auto-
 ### Build & Run
 1. Clone this repository:
    ```bash
-   git clone https://github.com/your-username/expense-tracker.git
+   git clone https://github.com/areyypriyanshu/expense-tracker.git
    ```
 2. Open the project in Android Studio.
 3. Allow Gradle to sync and download all dependencies.
