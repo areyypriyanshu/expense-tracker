@@ -49,6 +49,7 @@ abstract class ExpenseDatabase : RoomDatabase() {
                     "expense_database"
                 )
                     .addMigrations(MIGRATION_1_TO_2, MIGRATION_2_TO_3)
+                    .fallbackToDestructiveMigration()
                     .build()
                     .also { INSTANCE = it }
             }

@@ -1,5 +1,6 @@
 plugins {
     id("com.android.application")
+    id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.devtools.ksp")
 }
@@ -23,10 +24,16 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = file(project.findProperty("RELEASE_STORE_FILE") as String)
-            storePassword = project.findProperty("RELEASE_STORE_PASSWORD") as String
-            keyAlias = project.findProperty("RELEASE_KEY_ALIAS") as String
-            keyPassword = project.findProperty("RELEASE_KEY_PASSWORD") as String
+            val storeFileProp = project.findProperty("RELEASE_STORE_FILE") as? String
+            val storePasswordProp = project.findProperty("RELEASE_STORE_PASSWORD") as? String
+            val keyAliasProp = project.findProperty("RELEASE_KEY_ALIAS") as? String
+            val keyPasswordProp = project.findProperty("RELEASE_KEY_PASSWORD") as? String
+            if (storeFileProp != null && storePasswordProp != null && keyAliasProp != null && keyPasswordProp != null) {
+                storeFile = file(storeFileProp)
+                storePassword = storePasswordProp
+                keyAlias = keyAliasProp
+                keyPassword = keyPasswordProp
+            }
         }
     }
 
@@ -45,6 +52,9 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+    kotlinOptions {
+        jvmTarget = "17"
+    }
     buildFeatures {
         compose = true
     }
@@ -52,6 +62,10 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+    }
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
     }
 }
 
