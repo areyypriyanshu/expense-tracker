@@ -1,0 +1,286 @@
+{
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/gradlew": {
+    "mtime": 1776015643.2496731,
+    "hash": "8096c1506e7e2a834298268ce8764837"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/build.gradle.kts": {
+    "mtime": 1789981129.5551844,
+    "hash": "7af897688422c8f1dffacc8ab38103a0"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/settings.gradle.kts": {
+    "mtime": 1776015037.7701883,
+    "hash": "33ca541164c9ee1a0dba89f516307af7"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/build.gradle.kts": {
+    "mtime": 1790360885.6247296,
+    "hash": "e6e3561f01ef36aeb5d79a1187def51d"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/test/java/com/expensetracker/ui/screens/ocr/OcrPermissionTest.kt": {
+    "mtime": 1790360504.1131477,
+    "hash": "60fbed739208138049dc205ea6456c7e"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/test/java/com/expensetracker/domain/chatbot/IntentParserTest.kt": {
+    "mtime": 1790360504.1128244,
+    "hash": "9ea1f5a6f48c17b10a63b565ebec4613"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/test/java/com/expensetracker/services/receipt/ReceiptParserTest.kt": {
+    "mtime": 1789981129.5545142,
+    "hash": "9f55fd7e061e3e9120d876a21f053d4a"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/test/java/com/expensetracker/services/receipt/ReceiptDatasetEvaluationTest.kt": {
+    "mtime": 1789981129.5543728,
+    "hash": "5ddcc7f71b7f3c27a7bbcd8430774976"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/MainActivity.kt": {
+    "mtime": 1776019942.3390293,
+    "hash": "b3b051e562de40e163268b35f24f19ff"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/ExpenseTrackerApp.kt": {
+    "mtime": 1789981129.5509808,
+    "hash": "a5f2aa674531afb02a75b355377af6e9"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/ui/navigation/Navigation.kt": {
+    "mtime": 1790360504.109846,
+    "hash": "8259432c37be28ab293b1c0cf3ca0ef7"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/ui/screens/transaction/AddTransactionScreen.kt": {
+    "mtime": 1790360504.1124356,
+    "hash": "231bd80babc2f54393257ec02b619bfd"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/ui/screens/transaction/TransactionsScreen.kt": {
+    "mtime": 1789981129.5536165,
+    "hash": "8bb467f874b5b9c6440c28da6f774ef9"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/ui/screens/transaction/TransactionsViewModel.kt": {
+    "mtime": 1778683208.2429726,
+    "hash": "230007fd51448ba943c2dd77a06b230a"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/ui/screens/transaction/AddTransactionViewModel.kt": {
+    "mtime": 1789981129.5533888,
+    "hash": "2b23dc7d93dfe4df55c81858c6a37271"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/ui/screens/settings/SettingsScreen.kt": {
+    "mtime": 1790360504.11215,
+    "hash": "26504980b103e5220108f4516607b9fd"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/ui/screens/settings/SettingsViewModel.kt": {
+    "mtime": 1778680672.6717596,
+    "hash": "31ef44b89fea61fc783d3dbc58f9e328"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/ui/screens/upi_sync/UpiSyncScreen.kt": {
+    "mtime": 1782235977.9315531,
+    "hash": "3b3886779dd7056bb60692141f5dec0b"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/ui/screens/chatbot/ChatbotViewModel.kt": {
+    "mtime": 1790360504.1104808,
+    "hash": "42088d8c9dffeb40e0e6c091d1903cca"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/ui/screens/chatbot/ChatbotScreen.kt": {
+    "mtime": 1790360504.1102598,
+    "hash": "c05fc8fc23a1b27d55bbd76cad3a8238"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/ui/screens/ocr/OcrScanScreen.kt": {
+    "mtime": 1790360504.1117134,
+    "hash": "beb9852a547ba6ca4c6406916cb0d651"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/ui/screens/dashboard/DashboardScreen.kt": {
+    "mtime": 1790360504.111326,
+    "hash": "351e002de7627313af8b8dc2623fdf00"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/ui/screens/dashboard/DashboardViewModel.kt": {
+    "mtime": 1778680672.6725023,
+    "hash": "78a66e5e6fb925e71a392ea7f1e9ab6d"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/ui/screens/budgets/BudgetsViewModel.kt": {
+    "mtime": 1789981129.552458,
+    "hash": "8fa1be5ba16e160cf11df3f59d0b008c"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/ui/screens/budgets/BudgetsScreen.kt": {
+    "mtime": 1782238153.6768818,
+    "hash": "480452a5486c7612398d98cdd2e7737f"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/ui/screens/import/ImportScreen.kt": {
+    "mtime": 1782238233.7802274,
+    "hash": "b5283d1a8e772c20c35c3e1394737dbd"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/ui/screens/import/ImportViewModel.kt": {
+    "mtime": 1778680672.6734836,
+    "hash": "f1a55f73ab558140f609f7bf1bfbf1e4"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/ui/screens/recurring/RecurringViewModel.kt": {
+    "mtime": 1782280656.360892,
+    "hash": "7255b0c5af41599fde730ffa83f8bb97"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/ui/screens/recurring/RecurringScreen.kt": {
+    "mtime": 1782280739.6493587,
+    "hash": "9bd6270f2154bb92f6383cf4d51058f9"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/ui/screens/analytics/AnalyticsScreen.kt": {
+    "mtime": 1789980624.853386,
+    "hash": "ef53989b0c1df6c9e4d19863085abd58"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/ui/screens/analytics/AnalyticsViewModel.kt": {
+    "mtime": 1778682549.3713436,
+    "hash": "7a393aa6955cc3afb3bb4c52b6d38db1"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/ui/screens/reports/ReportsViewModel.kt": {
+    "mtime": 1782280777.6898665,
+    "hash": "3f262ab7e53158416da7bda20d6ea82a"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/ui/screens/reports/ReportsScreen.kt": {
+    "mtime": 1782280777.8598757,
+    "hash": "7b957cefcbbea622c3ddd30d874fa909"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/ui/components/Components.kt": {
+    "mtime": 1789981129.5521102,
+    "hash": "8a8e1026c4ce57149410bb2f6cf0dcb2"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/ui/components/AppHeader.kt": {
+    "mtime": 1782238191.1586096,
+    "hash": "32ca22b742e664f1b5f11405d833a3e7"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/ui/theme/Motion.kt": {
+    "mtime": 1782237794.222714,
+    "hash": "d6ef922bf010ebe64a93618315220e89"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/ui/theme/Theme.kt": {
+    "mtime": 1779596867.7011704,
+    "hash": "081016ad7767ddad15fe71183812802e"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/ui/theme/Type.kt": {
+    "mtime": 1778680672.6766367,
+    "hash": "bbe6c9b321d62ad177ef112c7aeb7354"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/data/repository/Repositories.kt": {
+    "mtime": 1779596730.1115592,
+    "hash": "2f536daf78a3d429380c9265c8b7d8d1"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/data/local/ExpenseDatabase.kt": {
+    "mtime": 1789981129.5513833,
+    "hash": "38e183ae543e927cd84687f0122e47b3"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/data/local/dao/Daos.kt": {
+    "mtime": 1778683802.243446,
+    "hash": "a9a948f3478c47cc2c1639320ad94e29"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/data/local/datastore/PreferencesManager.kt": {
+    "mtime": 1782241791.8715353,
+    "hash": "34901034b4216f4764f86403a58ff21c"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/data/model/Entities.kt": {
+    "mtime": 1779596683.3913991,
+    "hash": "9da1b5df0dc624f30654a8cef0f7fbfc"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/domain/chatbot/IntentParser.kt": {
+    "mtime": 1790360504.1095636,
+    "hash": "16761cb5141b30156a590983267972ed"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/domain/model/UiState.kt": {
+    "mtime": 1776052019.726673,
+    "hash": "94a44fe779ee95d90a6f881b7284a0ee"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/domain/model/MonetaryUtil.kt": {
+    "mtime": 1779596997.6511776,
+    "hash": "a7d0e175295bc65fc9b3274150481d4e"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/domain/usecase/BudgetUseCases.kt": {
+    "mtime": 1776063808.9821455,
+    "hash": "a1b059db5583d29d2f0f929e09cc2169"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/domain/usecase/TransactionUseCases.kt": {
+    "mtime": 1776063799.2586691,
+    "hash": "f74efe6592f4cc68d4b76a3cdbc39330"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/domain/engine/CategoryEngine.kt": {
+    "mtime": 1776064067.9576857,
+    "hash": "788a14e01a5044aae31d04c9b16abcdd"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/domain/engine/ReportEngine.kt": {
+    "mtime": 1776061084.738145,
+    "hash": "444e60a53f7a40165a29964f83d60aa9"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/domain/engine/BudgetEngine.kt": {
+    "mtime": 1779596745.1309948,
+    "hash": "988888c1ae7fd34c2ad99b777261dde4"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/services/insights/SpendingInsightsService.kt": {
+    "mtime": 1779597050.7043407,
+    "hash": "3651d5bf2dc2c4b45a4965ce3f5b9967"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/services/alerts/AlertService.kt": {
+    "mtime": 1779596955.6382556,
+    "hash": "8de2640dca716236ebe1be66ef984aa0"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/services/receipt/ReceiptScanResult.kt": {
+    "mtime": 1789981129.5519066,
+    "hash": "a07099e55b47e0cb34c5715b3865cda9"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/services/receipt/ReceiptParser.kt": {
+    "mtime": 1789981129.5517993,
+    "hash": "5cfed606f8aea4e3e8fcdf791bd044a7"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/services/receipt/ReceiptOcrService.kt": {
+    "mtime": 1789981129.5516162,
+    "hash": "318d819992d423204c80f9a3eb08ec0f"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/services/export/ExportService.kt": {
+    "mtime": 1782280754.9029338,
+    "hash": "6ed0d7ba01bc3f79589e76a7d5cd2905"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/services/import/CsvParser.kt": {
+    "mtime": 1779596851.3429275,
+    "hash": "1d7f1808fbd226644e0c8b7dc32480fa"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/services/currency/CurrencyService.kt": {
+    "mtime": 1778683860.006248,
+    "hash": "3ffcc28c8507ef6a23468f6aea26cca6"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/services/upisync/UpiSyncWorker.kt": {
+    "mtime": 1776064339.2096188,
+    "hash": "05c6b55353b7c380041c7afc5878372b"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/services/upisync/UpiSyncService.kt": {
+    "mtime": 1779596816.476082,
+    "hash": "ce90dbcf804efbd62dc48329c8d860ad"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/app/src/main/java/com/expensetracker/services/upisync/UpiSmsParser.kt": {
+    "mtime": 1779596774.7234728,
+    "hash": "84836aded3790a2ec1182945180233fb"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/UI-SPEC.md": {
+    "mtime": 1778680164.0155373,
+    "hash": "b3407a5096ffda7af14eb9afb93dc83d"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/README.md": {
+    "mtime": 1789981725.7595444,
+    "hash": "725683d67e67af2207113886004050c6"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/AGENTS.md": {
+    "mtime": 1778677787.8153865,
+    "hash": "a993bd9a8466b705f520b2a269a544bc"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/expense_tracker_markdown_pack/PRD.md": {
+    "mtime": 1775977262.0,
+    "hash": "659b7d83fc9b6fd6f87265adf75bc1fb"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/expense_tracker_markdown_pack/backend-structure.md": {
+    "mtime": 1775977262.0,
+    "hash": "969d71607e2ab52c7d81c79b843d7c64"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/expense_tracker_markdown_pack/tech-stack.md": {
+    "mtime": 1775977262.0,
+    "hash": "efc8d6a49bf4e674922053dff2d2970f"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/expense_tracker_markdown_pack/implementation-plan.md": {
+    "mtime": 1775977262.0,
+    "hash": "09f8ee1f7cdd0a56107343554d325cd5"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/expense_tracker_markdown_pack/frontend-guidelines.md": {
+    "mtime": 1775977262.0,
+    "hash": "e13e99bb304803cac2bd362e52d5f099"
+  },
+  "/Users/mandal/Documents/Expense Tracker (AG)/Expense Tracker/expense_tracker_markdown_pack/app-flow.md": {
+    "mtime": 1775977262.0,
+    "hash": "7d727bcf52e353ee8fb0167c79bbd4e2"
+  }
+}

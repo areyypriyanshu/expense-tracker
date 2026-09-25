@@ -100,7 +100,9 @@ dependencies {
 
     implementation("com.patrykandpatrick.vico:compose-m3:1.14.0")
 
-    implementation("com.google.mlkit:text-recognition:16.0.1")
+    // Deliver the OCR model through Google Play services instead of bundling its native
+    // libraries in the APK. This avoids 16 KB page-size-incompatible ML Kit binaries.
+    implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.1")
 
     implementation("androidx.camera:camera-core:1.3.1")
     implementation("androidx.camera:camera-camera2:1.3.1")
