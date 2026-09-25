@@ -35,7 +35,7 @@ captures/
 expense_tracker_markdown_pack/
 .opencode/
 AGENTS.md
-graphify-out/.rebuild.lock
+graphify-out/
 
 # Local Gradle cache
 .gradle_home/
