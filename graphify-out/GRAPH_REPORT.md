@@ -1,16 +1,16 @@
 # Graph Report - Expense Tracker  (2026-09-26)
 
 ## Corpus Check
-- 71 files · ~44,231 words
+- 71 files · ~44,393 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 826 nodes · 1100 edges · 52 communities (37 shown, 15 thin omitted)
+- 827 nodes · 1101 edges · 54 communities (38 shown, 16 thin omitted)
 - Extraction: 92% EXTRACTED · 8% INFERRED · 0% AMBIGUOUS · INFERRED: 93 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `e6a394f5`
+- Built from commit: `0301cdde`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -63,6 +63,8 @@
 - [[_COMMUNITY_Community 45|Community 45]]
 - [[_COMMUNITY_Community 46|Community 46]]
 - [[_COMMUNITY_Community 47|Community 47]]
+- [[_COMMUNITY_Community 48|Community 48]]
+- [[_COMMUNITY_Community 49|Community 49]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `IntentParserTest` - 38 edges
@@ -88,7 +90,7 @@
 - `AppNavHost()` --calls--> `SettingsScreen()`  [INFERRED]
   app/src/main/java/com/expensetracker/ui/navigation/Navigation.kt → app/src/main/java/com/expensetracker/ui/screens/settings/SettingsScreen.kt
 
-## Communities (52 total, 15 thin omitted)
+## Communities (54 total, 16 thin omitted)
 
 ### Community 0 - "Community 0"
 Cohesion: 0.07
@@ -96,73 +98,77 @@ Nodes (48): AnalyticsInsightCard(), AnalyticsScreen(), AnimatedBarChart(), Categ
 
 ### Community 1 - "Community 1"
 Cohesion: 0.05
-Nodes (11): RecurringRule, ReceiptOcrService, Factory, RecurringUiState, RecurringViewModel, RecurringRuleRepository, AddTransactionUiState, AddTransactionViewModel (+3 more)
-
-### Community 2 - "Community 2"
-Cohesion: 0.05
 Nodes (6): BudgetDao, CategoryDao, CategoryTotal, CurrencyRateDao, RecurringRuleDao, TransactionDao
 
-### Community 4 - "Community 4"
+### Community 3 - "Community 3"
 Cohesion: 0.06
 Nodes (35): ChatbotIntent, CompareCategories, CompareLast30Days, CompareLast7Days, CompareMonths, CompareSamePeriodLastMonth, CompareSamePeriodLastYear, CompareWeeks (+27 more)
 
-### Community 5 - "Community 5"
+### Community 4 - "Community 4"
 Cohesion: 0.09
 Nodes (29): ChatbotScreen(), MessageBubble(), FileSelectionView(), ImportPreview(), ImportScreen(), readTextLimited(), TransactionPreviewItem(), AddTransaction (+21 more)
 
-### Community 6 - "Community 6"
-Cohesion: 0.08
-Nodes (14): BudgetEngine, BudgetStatus, Budget, BudgetPeriod, Category, CurrencyRate, RecurringFrequency, UserPreference (+6 more)
+### Community 5 - "Community 5"
+Cohesion: 0.09
+Nodes (6): ReceiptOcrService, AddTransactionUiState, AddTransactionViewModel, Factory, ReceiptFormSnapshot, toReceiptSnapshot()
 
-### Community 7 - "Community 7"
+### Community 6 - "Community 6"
 Cohesion: 0.1
 Nodes (3): SyncedTransaction, UpiSyncService, UpiSyncWorker
+
+### Community 7 - "Community 7"
+Cohesion: 0.09
+Nodes (12): DailyTotal, RecurringEngine, ReportData, ReportEngine, ReportPeriod, BudgetPeriod, Category, CurrencyRate (+4 more)
 
 ### Community 9 - "Community 9"
 Cohesion: 0.14
 Nodes (9): AmountCandidate, DateExtraction, ReceiptParser, TotalLabel, Failure, NoText, ReceiptOcrResult, ReceiptScanResult (+1 more)
 
 ### Community 10 - "Community 10"
+Cohesion: 0.11
+Nodes (9): BudgetEngine, BudgetStatus, Budget, AddBudgetUseCase, BudgetAlert, CheckBudgetAlertUseCase, DeleteBudgetUseCase, GetBudgetStatusesUseCase (+1 more)
+
+### Community 11 - "Community 11"
 Cohesion: 0.16
 Nodes (8): ChatbotUiState, ChatbotViewModel, ChatMessage, Factory, InsightSeverity, InsightType, SpendingInsight, SpendingInsightsService
 
-### Community 11 - "Community 11"
+### Community 12 - "Community 12"
 Cohesion: 0.12
 Nodes (9): Factory, ImportData, ImportUiState, ImportViewModel, Error, Loading, Result, Success (+1 more)
 
-### Community 12 - "Community 12"
+### Community 13 - "Community 13"
 Cohesion: 0.18
 Nodes (9): EmptySyncView(), ErrorView(), Factory, PermissionRequestView(), SyncTransactionList(), TransactionSyncItem(), UpiSyncScreen(), UpiSyncUiState (+1 more)
 
-### Community 13 - "Community 13"
-Cohesion: 0.14
-Nodes (6): DailyTotal, RecurringEngine, ReportData, ReportEngine, ReportPeriod, Transaction
-
 ### Community 14 - "Community 14"
-Cohesion: 0.2
-Nodes (18): AddTransactionScreen(), AmountInput(), CategoryCard(), CategorySection(), createReceiptImageFile(), CurrencyPickerDialog(), DatePickerDialogContent(), ErrorMessage() (+10 more)
+Cohesion: 0.12
+Nodes (4): Factory, RecurringUiState, RecurringViewModel, RecurringRuleRepository
 
 ### Community 15 - "Community 15"
+Cohesion: 0.19
+Nodes (18): AddTransactionScreen(), AmountInput(), CategoryCard(), CategorySection(), createReceiptImageFile(), CurrencyPickerDialog(), DatePickerDialogContent(), ErrorMessage() (+10 more)
+
+### Community 16 - "Community 16"
+Cohesion: 0.1
+Nodes (19): 1. 📬 Automated UPI SMS Syncing, 2. 📊 Rich Charts & Analytics, 3. 🎯 Budgets & Threshold Alerts, 4. 🔄 Subscriptions & Recurring Outflows, 5. 💱 Multi-Currency Support, 6. 🧾 Receipt OCR Scanning, 7. 🤖 On-Device Finance Assistant, 📂 Architecture (+11 more)
+
+### Community 18 - "Community 18"
 Cohesion: 0.16
 Nodes (8): Intent, Interaction Contract, Scope, UI-SPEC, Visual Contract, ExportService, ReportsScreen(), SummaryRow()
 
-### Community 17 - "Community 17"
-Cohesion: 0.11
-Nodes (18): 1. 📬 Automated UPI SMS Syncing, 2. 📊 Rich Charts & Analytics, 3. 🎯 Budgets & Threshold Alerts, 4. 🔄 Subscriptions & Recurring Outflows, 5. 💱 Multi-Currency Support, 6. 🧾 Receipt OCR Scanning, 📂 Architecture, Build & Run (+10 more)
-
-### Community 19 - "Community 19"
+### Community 20 - "Community 20"
 Cohesion: 0.19
 Nodes (3): UpiSmsParser, UpiSmsResult, UpiTransactionType
 
-### Community 20 - "Community 20"
+### Community 21 - "Community 21"
 Cohesion: 0.19
 Nodes (6): Error, ExportResult, Factory, ReportsUiState, ReportsViewModel, Success
 
-### Community 21 - "Community 21"
+### Community 22 - "Community 22"
 Cohesion: 0.24
 Nodes (4): CsvParser, ImportResult, ParsedRow, TransactionType
 
-### Community 22 - "Community 22"
+### Community 23 - "Community 23"
 Cohesion: 0.28
 Nodes (3): DatasetRecord, FieldFailure, ReceiptDatasetEvaluationTest
 
@@ -218,29 +224,29 @@ Nodes (3): Factory, SettingsUiState, SettingsViewModel
 Cohesion: 0.48
 Nodes (5): CameraPreviewWithAnalysis(), MLKitImageAnalyzer, OcrScanScreen(), PermissionDeniedPermanentUI(), PermissionNotGrantedUI()
 
-### Community 43 - "Community 43"
+### Community 44 - "Community 44"
 Cohesion: 0.47
 Nodes (3): DashboardUiState, DashboardViewModel, Factory
 
 ## Knowledge Gaps
-- **129 isolated node(s):** `Dashboard`, `Transactions`, `Analytics`, `Budgets`, `Settings` (+124 more)
+- **130 isolated node(s):** `Dashboard`, `Transactions`, `Analytics`, `Budgets`, `Settings` (+125 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **15 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **16 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `TransactionRepository` connect `Community 16` to `Community 1`, `Community 35`, `Community 7`, `Community 10`, `Community 43`, `Community 12`, `Community 11`, `Community 20`, `Community 23`, `Community 28`, `Community 30`?**
-  _High betweenness centrality (0.123) - this node is a cross-community bridge._
-- **Why does `AppNavHost()` connect `Community 5` to `Community 0`, `Community 12`, `Community 14`, `Community 15`?**
+- **Why does `TransactionRepository` connect `Community 17` to `Community 35`, `Community 5`, `Community 6`, `Community 40`, `Community 11`, `Community 44`, `Community 13`, `Community 12`, `Community 21`, `Community 28`, `Community 30`?**
+  _High betweenness centrality (0.122) - this node is a cross-community bridge._
+- **Why does `AppNavHost()` connect `Community 4` to `Community 0`, `Community 18`, `Community 13`, `Community 15`?**
   _High betweenness centrality (0.094) - this node is a cross-community bridge._
-- **Why does `UpiSyncService` connect `Community 7` to `Community 12`?**
+- **Why does `UpiSyncService` connect `Community 6` to `Community 13`?**
   _High betweenness centrality (0.064) - this node is a cross-community bridge._
 - **Are the 10 inferred relationships involving `TransactionRepository` (e.g. with `.create()` and `.create()`) actually correct?**
   _`TransactionRepository` has 10 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 2 inferred relationships involving `UpiSyncService` (e.g. with `UpiSyncScreen()` and `.doWork()`) actually correct?**
   _`UpiSyncService` has 2 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `Dashboard`, `Transactions`, `Analytics` to the rest of the system?**
-  _129 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _130 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Community 0` be split into smaller, more focused modules?**
   _Cohesion score 0.07 - nodes in this community are weakly interconnected._

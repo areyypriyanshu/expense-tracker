@@ -100,7 +100,7 @@ fun SettingsScreen(
                 SettingsItem(
                     icon = Icons.Default.Info,
                     title = "About",
-                    subtitle = "Version 1.0.1",
+                    subtitle = "Version 1.0.2",
                     onClick = { showAboutDialog = true }
                 )
             }
@@ -173,7 +173,7 @@ fun SettingsScreen(
             title = { Text("Expense Tracker", fontWeight = FontWeight.SemiBold) },
             text = {
                 Column {
-                    Text("Version 1.0.1")
+                    Text("Version 1.0.2")
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         "A clean, fast expense tracking app to help you manage your finances.",

@@ -41,6 +41,12 @@ Scan physical receipts and bills using your camera to automatically extract tran
 * **Merchant & Date Extraction:** Scores candidate merchant name lines based on position, capitalisation, and business suffix keywords. Detects dates in multiple formats (`DD/MM/YYYY`, `DD-MMM-YYYY`, ISO, etc.) with ambiguity flagging.
 * **Multi-Currency Detection:** Automatically detects currency from symbols and keywords (`₹`, `Rs.`, `INR`, `$`, `€`, `£`) and falls back to the user's base currency.
 
+### 7. 🤖 On-Device Finance Assistant
+Ask plain-language questions about your finances without sending your data to a server.
+* **Natural-Language Queries:** A local `IntentParser` recognizes questions about spending by period or category, individual transactions, income, balances, budgets, averages, and comparisons.
+* **Actionable Answers:** The assistant can surface recent, highest, lowest, and threshold-based expenses; spending summaries; budget status; and month-, week-, year-, category-, or rolling-period comparisons.
+* **Private by Design:** `ChatbotViewModel` answers queries directly from the locally stored Room data and the user's DataStore preferences. The chatbot uses no remote AI service.
+
 ---
 
 ## 🎨 Design Philosophy (`UI-SPEC`)
@@ -75,22 +81,26 @@ app/src/main/java/com/expensetracker/
 │   ├── model/          # Room Entity definitions (Transaction, Budget, Category, etc.)
 │   └── repository/     # Repositories facilitating data layer abstraction
 ├── domain/
-│   ├── engine/         # Heuristic Engines (CategoryEngine, BudgetEngine, ReportEngine)
-│   ├── model/          # View State definitions and utilities
-│   └── usecase/        # Domain business logic wrappers (Transaction & Budget Use Cases)
+│   ├── chatbot/        # Local natural-language intent parsing for the Finance Assistant
+│   ├── engine/         # Heuristic engines (CategoryEngine, BudgetEngine, ReportEngine)
+│   ├── model/          # Shared domain utilities and UI-state models
+│   └── usecase/        # Business-logic wrappers (Transaction and Budget use cases)
 ├── services/
 │   ├── alerts/         # Budget threshold warnings and notification services
 │   ├── currency/       # Offline exchange rate caching and conversions
 │   ├── export/         # CSV and file export services
 │   ├── import/         # CSV parsing utilities
 │   ├── insights/       # Automated spending insights generators
+│   ├── receipt/        # On-device OCR and receipt-detail parsing
 │   └── upisync/        # WorkManager background workers and SMS parsers
 └── ui/
     ├── components/     # Reusable layout UI components
     ├── navigation/     # Jetpack Compose navigation configuration
-    ├── screens/        # Feature screens (Dashboard, Transactions, Analytics, UpiSync, etc.)
+    ├── screens/        # Feature screens (Dashboard, Assistant, Transactions, Analytics, UPI Sync, etc.)
     └── theme/          # Material 3 typography, shapes, and color configurations
 ```
+
+The Compose UI follows a unidirectional MVVM flow: screens observe `StateFlow` from feature ViewModels, ViewModels coordinate repositories, domain engines, and services, and repositories persist data through Room and DataStore. The Finance Assistant is a feature of this same flow: `ChatbotScreen` → `ChatbotViewModel` → local `IntentParser`, repositories, and `BudgetEngine`.
 
 ---
 
@@ -126,4 +136,3 @@ On first launch, the app shows a one-time prompt that sends users to **UPI Auto-
 ## 📄 License
 
 This project is licensed under the Apache License 2.0. See the `LICENSE` file for details.
-
