@@ -5,12 +5,40 @@ sealed class ChatbotIntent {
     object GetTodaySpending : ChatbotIntent()
     object GetYesterdaySpending : ChatbotIntent()
     object GetWeeklySpending : ChatbotIntent()
+    object GetLastWeekSpending : ChatbotIntent()
     data class GetMonthlySpending(val month: Int? = null, val year: Int? = null) : ChatbotIntent()
+    object GetLastMonthSpending : ChatbotIntent()
     data class GetCategorySpending(val category: String) : ChatbotIntent()
     object GetHighestExpense : ChatbotIntent()
+    object GetLowestExpense : ChatbotIntent()
     data class GetRecentTransactions(val limit: Int = 5) : ChatbotIntent()
+    data class GetCategoryTransactions(val category: String, val limit: Int = 5) : ChatbotIntent()
+    data class GetExpensesAboveAmount(val amount: Double) : ChatbotIntent()
     object GetBudgetStatus : ChatbotIntent()
+    data class GetCategoryBudgetStatus(val category: String) : ChatbotIntent()
     object GetSpendingSummary : ChatbotIntent()
+    object GetAverageDailySpending : ChatbotIntent()
+    object GetTotalIncome : ChatbotIntent()
+    object GetNetBalance : ChatbotIntent()
+    object CompareMonths : ChatbotIntent()
+    object CompareWeeks : ChatbotIntent()
+    object CompareYears : ChatbotIntent()
+    object CompareSamePeriodLastMonth : ChatbotIntent()
+    object CompareSamePeriodLastYear : ChatbotIntent()
+    object CompareLast7Days : ChatbotIntent()
+    object CompareLast30Days : ChatbotIntent()
+    data class CompareCategories(val category1: String, val category2: String) : ChatbotIntent()
+    object GetHighestExpenseCategory : ChatbotIntent()
+    object GetCategoryWithMostIncrease : ChatbotIntent()
+    object GetSpendingTrendInsight : ChatbotIntent()
+    data class FilteredTransactions(
+        val category: String? = null,
+        val startDate: java.time.LocalDateTime? = null,
+        val endDate: java.time.LocalDateTime? = null,
+        val minAmount: Double? = null,
+        val maxAmount: Double? = null,
+        val limit: Int = 10
+    ) : ChatbotIntent()
     object Help : ChatbotIntent()
     object Unknown : ChatbotIntent()
 }
@@ -18,18 +46,205 @@ sealed class ChatbotIntent {
 class IntentParser {
 
     fun parse(input: String): ChatbotIntent {
-        // Normalize input by removing punctuation such as ?, !, ., and ,
-        val cleanInput = input.trim().lowercase().replace(Regex("[?!.,]"), "")
+        val cleanInput = input.trim().lowercase().replace(Regex("[?!,]"), "")
 
         return when {
             // Help
-            cleanInput.matches(Regex(".*\\b(help|commands|what can you do)\\b.*")) -> {
+            cleanInput.matches(Regex(".*\\b(help|commands|what can you do|assist me|what do you do)\\b.*")) -> {
                 ChatbotIntent.Help
             }
 
+            // Lowest Expense
+            cleanInput.matches(Regex(".*\\b(lowest|smallest|min|minimum)\\b.*(expense|spending|transaction)?.*")) -> {
+                ChatbotIntent.GetLowestExpense
+            }
+
+            // Expenses above amount
+            cleanInput.matches(Regex(".*\\b(above|over|more than|greater than|exceeds?)\\b.*\\d+.*")) ||
+            cleanInput.matches(Regex(".*\\b(above|over|more than|greater than)\\b.*(amount|dollars?|usd?)\\b.*")) ||
+            cleanInput.matches(Regex(".*\\b(expenses?|spending)\\b.*\\d+.*")) -> {
+                val amountMatch = Regex("\\b(\\d+(?:\\.\\d+)?)\\b").find(cleanInput)
+                val amount = amountMatch?.groupValues?.get(1)?.toDoubleOrNull() ?: 0.0
+                if (amount > 0) ChatbotIntent.GetExpensesAboveAmount(amount) else ChatbotIntent.Unknown
+            }
+
+            // Category transactions
+            cleanInput.contains("transaction") && (cleanInput.contains("on ") || cleanInput.contains("for ") || cleanInput.contains("in ") || cleanInput.contains("category") || cleanInput.contains("food") || cleanInput.contains("travel") || cleanInput.contains("shopping") || cleanInput.contains("bill")) -> {
+                val category = extractCategory(cleanInput).ifBlank {
+                    when {
+                        cleanInput.contains("food") || cleanInput.contains("dining") -> "Food & Dining"
+                        cleanInput.contains("travel") || cleanInput.contains("trip") -> "Travel"
+                        cleanInput.contains("shopping") -> "Shopping"
+                        cleanInput.contains("bill") || cleanInput.contains("utility") -> "Bills & Utilities"
+                        else -> ""
+                    }
+                }
+                if (category.isNotBlank()) {
+                    ChatbotIntent.GetCategoryTransactions(category)
+                } else {
+                    ChatbotIntent.Unknown
+                }
+            }
+
+            // Category budget status
+            cleanInput.contains("budget") && (extractCategory(cleanInput).isNotBlank() || cleanInput.contains("food") || cleanInput.contains("travel") || cleanInput.contains("shopping") || cleanInput.contains("bill")) -> {
+                val category = extractCategory(cleanInput).ifBlank {
+                    when {
+                        cleanInput.contains("food") || cleanInput.contains("dining") -> "Food & Dining"
+                        cleanInput.contains("travel") || cleanInput.contains("trip") -> "Travel"
+                        cleanInput.contains("shopping") -> "Shopping"
+                        cleanInput.contains("bill") || cleanInput.contains("utility") -> "Bills & Utilities"
+                        else -> ""
+                    }
+                }
+                if (category.isNotBlank()) ChatbotIntent.GetCategoryBudgetStatus(category) else ChatbotIntent.GetBudgetStatus
+            }
+
+            // Budget Status
+            cleanInput.matches(Regex(".*\\b(budget|budgets)\\b.*(status|overview|remaining|left|over)?.*")) ||
+            cleanInput.matches(Regex(".*\\bhow is my budget\\b.*")) ||
+            cleanInput.matches(Regex(".*\\bbudget\\b.*\\b(status|left|remaining)\\b.*")) -> {
+                ChatbotIntent.GetBudgetStatus
+            }
+
+            // Category spending (more natural phrases)
+            (cleanInput.contains("on ") || cleanInput.contains("for ") || cleanInput.contains("in ") || cleanInput.contains("category") ||
+             cleanInput.contains("food") || cleanInput.contains("travel") || cleanInput.contains("shopping") || cleanInput.contains("bill") || cleanInput.contains("transport")) -> {
+                val category = extractCategory(cleanInput).ifBlank {
+                    // Direct keyword scan as fallback
+                    when {
+                        cleanInput.contains("food") || cleanInput.contains("dining") || cleanInput.contains("restaurant") -> "Food & Dining"
+                        cleanInput.contains("travel") || cleanInput.contains("trip") || cleanInput.contains("flight") -> "Travel"
+                        cleanInput.contains("shopping") || cleanInput.contains("retail") -> "Shopping"
+                        cleanInput.contains("bill") || cleanInput.contains("utility") || cleanInput.contains("electric") || cleanInput.contains("water") || cleanInput.contains("internet") || cleanInput.contains("phone") -> "Bills & Utilities"
+                        cleanInput.contains("transport") || cleanInput.contains("transportation") || cleanInput.contains("car") -> "Transportation"
+                        cleanInput.contains("entertainment") || cleanInput.contains("movie") || cleanInput.contains("game") -> "Entertainment"
+                        cleanInput.contains("health") || cleanInput.contains("doctor") || cleanInput.contains("medical") -> "Healthcare"
+                        cleanInput.contains("education") || cleanInput.contains("school") || cleanInput.contains("study") -> "Education"
+                        cleanInput.contains("groceries") || cleanInput.contains("supermarket") -> "Groceries"
+                        cleanInput.contains("personal") || cleanInput.contains("beauty") || cleanInput.contains("spa") -> "Personal Care"
+                        cleanInput.contains("income") || cleanInput.contains("salary") || cleanInput.contains("earn") -> "Income"
+                        else -> ""
+                    }
+                }
+                if (category.isNotBlank()) {
+                    ChatbotIntent.GetCategorySpending(category)
+                } else {
+                    ChatbotIntent.Unknown
+                }
+            }
+
+            // Compare this week vs last week
+            cleanInput.contains("this week") && (cleanInput.contains("last week") || cleanInput.contains("compare week")) ||
+            cleanInput.contains("week") && cleanInput.contains("compare") && !cleanInput.contains("month") -> {
+                ChatbotIntent.CompareWeeks
+            }
+
+            // Compare this year vs last year
+            cleanInput.contains("this year") && (cleanInput.contains("last year") || cleanInput.contains("compare year")) ||
+            cleanInput.contains("year") && cleanInput.contains("compare") && !cleanInput.contains("month") && !cleanInput.contains("week") -> {
+                ChatbotIntent.CompareYears
+            }
+
+            // Same period last month (elapsed days)
+            cleanInput.contains("same period") && cleanInput.contains("last month") ||
+            cleanInput.contains("same days last month") ||
+            cleanInput.contains("same period") && cleanInput.contains("month") -> {
+                ChatbotIntent.CompareSamePeriodLastMonth
+            }
+
+            // Same period last year
+            cleanInput.contains("same period") && cleanInput.contains("last year") ||
+            cleanInput.contains("same dates last year") ||
+            cleanInput.contains("same period") && cleanInput.contains("year") -> {
+                ChatbotIntent.CompareSamePeriodLastYear
+            }
+
+            // Last 7 days vs previous 7 days
+            cleanInput.contains("last 7") || cleanInput.contains("7 days") || cleanInput.contains("previous 7") -> {
+                ChatbotIntent.CompareLast7Days
+            }
+
+            // Last 30 days vs previous 30 days
+            cleanInput.contains("last 30") || cleanInput.contains("30 days") || cleanInput.contains("previous 30") -> {
+                ChatbotIntent.CompareLast30Days
+            }
+
+            // Compare months
+            cleanInput.matches(Regex(".*\\b(compare|vs|versus)\\b.*\\b(this month|last month|monthly)\\b.*")) ||
+            cleanInput.contains("more this month") || cleanInput.contains("more than last month") ||
+            cleanInput.contains("compare month") || cleanInput.contains("spend more") -> {
+                ChatbotIntent.CompareMonths
+            }
+
+            // Compare categories
+            cleanInput.contains("compare") && (cleanInput.contains("food") || cleanInput.contains("travel") || cleanInput.contains("shopping") || cleanInput.contains("bill")) -> {
+                val c1 = when {
+                    cleanInput.contains("food") -> "Food & Dining"
+                    cleanInput.contains("travel") -> "Travel"
+                    cleanInput.contains("shopping") -> "Shopping"
+                    cleanInput.contains("bill") -> "Bills & Utilities"
+                    else -> ""
+                }
+                val c2 = when {
+                    cleanInput.contains("food") && cleanInput.contains("travel") -> "Travel"
+                    cleanInput.contains("food") && cleanInput.contains("shopping") -> "Shopping"
+                    cleanInput.contains("travel") && cleanInput.contains("shopping") -> "Shopping"
+                    else -> if (c1.isNotBlank()) "Food & Dining" else ""
+                }
+                if (c1.isNotBlank() && c2.isNotBlank()) ChatbotIntent.CompareCategories(c1, c2) else ChatbotIntent.Unknown
+            }
+
+            // Highest spending category
+            cleanInput.matches(Regex(".*\\b(highest|most|top|largest)\\b.*\\b(category|categories|spending)\\b.*")) ||
+            cleanInput.contains("which category") || cleanInput.contains("where am i spending the most") -> {
+                ChatbotIntent.GetHighestExpenseCategory
+            }
+
+            // Category with most increase
+            cleanInput.contains("increased") || cleanInput.contains("increase") ||
+            cleanInput.contains("which category costs more") || cleanInput.contains("which category increased") -> {
+                ChatbotIntent.GetCategoryWithMostIncrease
+            }
+
+            // Spending trend insight
+            cleanInput.contains("trend") || cleanInput.contains("usual") || cleanInput.contains("more than usual") || cleanInput.contains("spending more") -> {
+                ChatbotIntent.GetSpendingTrendInsight
+            }
+
+            // Average daily spending
+            cleanInput.matches(Regex(".*\\b(average|avg)\\b.*\\b(daily|per day|day)\\b.*")) ||
+            cleanInput.matches(Regex(".*\\b(daily|per day)\\b.*\\b(average|avg|mean)\\b.*")) ||
+            cleanInput.matches(Regex(".*\\b(how much)\\b.*\\b(average)\\b.*\\b(spend)\\b.*")) -> {
+                ChatbotIntent.GetAverageDailySpending
+            }
+
+            // Net balance
+            cleanInput.matches(Regex(".*\\b(net|balance|remaining)\\b.*")) ||
+            cleanInput.matches(Regex(".*\\b(how much)\\b.*\\b(left|balance)\\b.*")) -> {
+                ChatbotIntent.GetNetBalance
+            }
+
+            // Total income
+            cleanInput.matches(Regex(".*\\b(total|all|summarize)\\b.*\\b(income|earnings?|salary|earn)\\b.*")) ||
+            cleanInput.matches(Regex(".*\\b(income|earnings?|earn)\\b.*\\b(total|amount)\\b.*")) ||
+            cleanInput.matches(Regex(".*\\b(how much)\\b.*\\b(income|earn)\\b.*")) -> {
+                ChatbotIntent.GetTotalIncome
+            }
+
             // Highest Expense
-            cleanInput.matches(Regex(".*\\b(highest|biggest|most expensive|largest)\\b.*(expense|spending|transaction)?.*")) -> {
+            cleanInput.matches(Regex(".*\\b(highest|biggest|most expensive|largest|max)\\b.*(expense|spending|transaction)?.*")) -> {
                 ChatbotIntent.GetHighestExpense
+            }
+
+            // Last week spending
+            cleanInput.matches(Regex(".*\\b(last week|previous week|last 7 days)\\b.*")) -> {
+                ChatbotIntent.GetLastWeekSpending
+            }
+
+            // Last month spending
+            cleanInput.matches(Regex(".*\\b(last month|previous month)\\b.*")) -> {
+                ChatbotIntent.GetLastMonthSpending
             }
 
             // Recent Transactions
@@ -39,46 +254,29 @@ class IntentParser {
                 ChatbotIntent.GetRecentTransactions(limit = limit)
             }
 
-            // Budget Status
-            cleanInput.matches(Regex(".*\\b(budget|budgets)\\b.*(status|overview|remaining|left|over)?.*")) ||
-            cleanInput.matches(Regex(".*\\bhow is my budget\\b.*")) -> {
-                ChatbotIntent.GetBudgetStatus
-            }
-
             // Spending Summary / Overview
             cleanInput.matches(Regex(".*\\b(summary|overview|breakdown|analytics)\\b.*")) -> {
                 ChatbotIntent.GetSpendingSummary
             }
 
-            // Category Spending
-            cleanInput.contains("on ") -> {
-                val rawCategory = cleanInput.substringAfter("on ").trim().split(" ").firstOrNull() ?: ""
-                val category = rawCategory.replace(Regex("[?!.,]+"), "").trim()
-                if (category.isNotBlank()) {
-                    ChatbotIntent.GetCategorySpending(category)
-                } else {
-                    ChatbotIntent.Unknown
-                }
-            }
-
-            // Today Spending
-            cleanInput.matches(Regex(".*\\btoday\\b.*")) -> {
-                ChatbotIntent.GetTodaySpending
-            }
-
-            // Yesterday Spending
-            cleanInput.matches(Regex(".*\\byesterday\\b.*")) -> {
-                ChatbotIntent.GetYesterdaySpending
-            }
-
-            // Weekly Spending
+            // This week spending
             cleanInput.matches(Regex(".*\\b(this week|weekly|week)\\b.*")) -> {
                 ChatbotIntent.GetWeeklySpending
             }
 
-            // Monthly Spending
+            // This month spending
             cleanInput.matches(Regex(".*\\b(this month|monthly|month)\\b.*")) -> {
                 ChatbotIntent.GetMonthlySpending()
+            }
+
+            // Yesterday spending
+            cleanInput.matches(Regex(".*\\byesterday\\b.*")) -> {
+                ChatbotIntent.GetYesterdaySpending
+            }
+
+            // Today spending
+            cleanInput.matches(Regex(".*\\btoday\\b.*")) -> {
+                ChatbotIntent.GetTodaySpending
             }
 
             // Total Spending
@@ -87,7 +285,72 @@ class IntentParser {
                 ChatbotIntent.GetTotalSpending
             }
 
+            // Filter Transactions
+            cleanInput.matches(Regex(".*\\b(show)\\b.*(transaction|expense|spending)?.*")) ||
+            cleanInput.contains("between") || cleanInput.contains("above") || cleanInput.contains("largest") || cleanInput.contains("top") -> {
+                val category = extractCategory(cleanInput).ifBlank { null }
+                val amounts = Regex("\\b(\\d+(?:\\.\\d+)?)\\b").findAll(cleanInput).mapNotNull { it.value.toDoubleOrNull() }.toList()
+                val min = if (amounts.size >= 2) amounts.minOrNull() else (amounts.getOrNull(0)?.takeIf { cleanInput.contains("between") || cleanInput.contains("above") })
+                val max = if (amounts.size >= 2) amounts.maxOrNull() else null
+                ChatbotIntent.FilteredTransactions(category = category, minAmount = min, maxAmount = max, limit = if (cleanInput.contains("largest") || cleanInput.contains("top") || cleanInput.contains("5")) 5 else 10)
+            }
+
             else -> ChatbotIntent.Unknown
+        }
+    }
+
+    private fun extractCategory(input: String): String {
+        val patterns = listOf(
+            Regex("\\bon\\s+([a-z\\s&]+?)(?:\\s+(?:spend|expense|transaction|budget|amount|today|yesterday|this|last|week|month|show|give|what|how|is))"),
+            Regex("\\bfor\\s+([a-z\\s&]+?)(?:\\s+(?:spend|expense|transaction|budget))"),
+            Regex("\\bin\\s+([a-z\\s&]+?)(?:\\s+(?:category|spending|expenses))"),
+            Regex("\\bcategory\\s+([a-z\\s&]+?)\\b")
+        )
+        for (pattern in patterns) {
+            val match = pattern.find(input)
+            if (match != null) {
+                val raw = match.groupValues[1].trim()
+                val cleaned = raw.replace(Regex("[?!]+"), "").trim()
+                return normalizeCategory(cleaned)
+            }
+        }
+        // Keyword-based fallback for phrases like "Food expenses?" or "Travel spending"
+        val keywords = listOf(
+            "food" to "Food & Dining", "dining" to "Food & Dining", "restaurant" to "Food & Dining", "eat" to "Food & Dining",
+            "travel" to "Travel", "trip" to "Travel", "vacation" to "Travel", "flight" to "Travel",
+            "shopping" to "Shopping", "retail" to "Shopping", "store" to "Shopping",
+            "bill" to "Bills & Utilities", "utility" to "Bills & Utilities", "electric" to "Bills & Utilities", "water" to "Bills & Utilities", "gas" to "Bills & Utilities", "internet" to "Bills & Utilities", "phone" to "Bills & Utilities",
+            "transport" to "Transportation", "transportation" to "Transportation", "fuel" to "Transportation", "car" to "Transportation",
+            "entertainment" to "Entertainment", "movie" to "Entertainment", "game" to "Entertainment", "fun" to "Entertainment",
+            "health" to "Healthcare", "doctor" to "Healthcare", "medical" to "Healthcare", "pharmacy" to "Healthcare",
+            "education" to "Education", "study" to "Education", "school" to "Education", "course" to "Education",
+            "groceries" to "Groceries", "grocery" to "Groceries", "supermarket" to "Groceries",
+            "personal" to "Personal Care", "care" to "Personal Care", "beauty" to "Personal Care", "spa" to "Personal Care",
+            "income" to "Income", "salary" to "Income", "earn" to "Income", "wage" to "Income"
+        )
+        for ((kw, cat) in keywords) {
+            if (input.contains("$kw ") || input.contains("$kw?")) {
+                return cat
+            }
+        }
+        return ""
+    }
+
+    private fun normalizeCategory(value: String): String {
+        val lowered = value.lowercase().trim()
+        return when {
+            lowered.contains("food") || lowered.contains("dining") || lowered.contains("restaurant") || lowered.contains("eat") -> "Food & Dining"
+            lowered.contains("travel") || lowered.contains("trip") || lowered.contains("vacation") || lowered.contains("flight") -> "Travel"
+            lowered.contains("shopping") || lowered.contains("retail") || lowered.contains("store") -> "Shopping"
+            lowered.contains("bill") || lowered.contains("utility") || lowered.contains("electric") || lowered.contains("water") || lowered.contains("gas") || lowered.contains("internet") || lowered.contains("phone") -> "Bills & Utilities"
+            lowered.contains("transport") || lowered.contains("transportation") || lowered.contains("fuel") || lowered.contains("gas") || lowered.contains("car") -> "Transportation"
+            lowered.contains("entertainment") || lowered.contains("movie") || lowered.contains("game") || lowered.contains("fun") -> "Entertainment"
+            lowered.contains("health") || lowered.contains("doctor") || lowered.contains("medical") || lowered.contains("pharmacy") -> "Healthcare"
+            lowered.contains("education") || lowered.contains("study") || lowered.contains("school") || lowered.contains("course") -> "Education"
+            lowered.contains("groceries") || lowered.contains("grocery") || lowered.contains("supermarket") -> "Groceries"
+            lowered.contains("personal") || lowered.contains("care") || lowered.contains("beauty") || lowered.contains("spa") -> "Personal Care"
+            lowered.contains("income") || lowered.contains("salary") || lowered.contains("earn") || lowered.contains("wage") -> "Income"
+            else -> value.replaceFirstChar { it.uppercase() }
         }
     }
 }
