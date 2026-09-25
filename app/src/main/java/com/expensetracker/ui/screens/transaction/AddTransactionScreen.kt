@@ -1,5 +1,7 @@
 package com.expensetracker.ui.screens.transaction
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -37,6 +39,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.expensetracker.data.model.RecurringFrequency
 import com.expensetracker.services.currency.CurrencyService
@@ -89,10 +92,50 @@ fun AddTransactionScreen(
         }
     }
 
+    val launchCamera = {
+        try {
+            val file = createReceiptImageFile(context)
+            pendingReceiptFile = file
+            val uri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                file
+            )
+            receiptCaptureLauncher.launch(uri)
+        } catch (e: Exception) {
+            pendingReceiptFile?.delete()
+            pendingReceiptFile = null
+            viewModel.showReceiptScanError("Could not open the camera. Please choose an image instead.")
+        }
+    }
+
     val receiptPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
         if (uri != null) viewModel.scanReceipt(uri)
+    }
+
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            try {
+                val file = createReceiptImageFile(context)
+                pendingReceiptFile = file
+                val uri = FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    file
+                )
+                receiptCaptureLauncher.launch(uri)
+            } catch (_: Exception) {
+                pendingReceiptFile?.delete()
+                pendingReceiptFile = null
+                viewModel.showReceiptScanError("Could not open the camera. Please choose an image instead.")
+            }
+        } else {
+            viewModel.showReceiptScanError("Camera permission is required to scan receipts.")
+        }
     }
 
     val isEditing = transactionId != null && transactionId > 0
@@ -158,19 +201,23 @@ fun AddTransactionScreen(
                 isError = uiState.receiptScanIsError,
                 onDismissMessage = viewModel::clearReceiptScanMessage,
                 onScanReceipt = {
-                    try {
-                        val file = createReceiptImageFile(context)
-                        pendingReceiptFile = file
-                        val uri = FileProvider.getUriForFile(
-                            context,
-                            "${context.packageName}.fileprovider",
-                            file
-                        )
-                        receiptCaptureLauncher.launch(uri)
-                    } catch (_: Exception) {
-                        pendingReceiptFile?.delete()
-                        pendingReceiptFile = null
-                        viewModel.showReceiptScanError("Could not open the camera. Please choose an image instead.")
+                    if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                        try {
+                            val file = createReceiptImageFile(context)
+                            pendingReceiptFile = file
+                            val uri = FileProvider.getUriForFile(
+                                context,
+                                "${context.packageName}.fileprovider",
+                                file
+                            )
+                            receiptCaptureLauncher.launch(uri)
+                        } catch (_: Exception) {
+                            pendingReceiptFile?.delete()
+                            pendingReceiptFile = null
+                            viewModel.showReceiptScanError("Could not open the camera. Please choose an image instead.")
+                        }
+                    } else {
+                        cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
                     }
                 },
                 onChooseImage = {
