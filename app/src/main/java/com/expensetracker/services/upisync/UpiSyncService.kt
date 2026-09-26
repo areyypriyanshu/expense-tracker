@@ -13,6 +13,7 @@ import android.security.keystore.KeyProperties
 import android.util.Base64
 import androidx.core.app.ActivityCompat
 import com.expensetracker.data.model.Transaction
+import com.expensetracker.domain.engine.CategoryEngine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.security.KeyStore
@@ -241,7 +242,7 @@ class UpiSyncService(private val context: Context) {
                         
                         when (result.type) {
                             UpiTransactionType.CREDIT -> {
-                                category = if (body.contains(Regex("(?i)(refund|cashback|reversal)"))) {
+                                category = if (CategoryEngine.isRefundOrCashback(body)) {
                                     "Refund"
                                 } else {
                                     "Income"

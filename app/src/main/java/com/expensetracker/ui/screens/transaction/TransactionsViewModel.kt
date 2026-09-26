@@ -15,7 +15,6 @@ import java.time.LocalDateTime
 import java.time.temporal.TemporalAdjusters
 
 data class TransactionListUiState(
-    val transactions: List<Transaction> = emptyList(),
     val filteredTransactions: List<Transaction> = emptyList(),
     val categories: List<Category> = emptyList(),
     val searchQuery: String = "",
@@ -77,7 +76,6 @@ class TransactionsViewModel(
                 val todayTotal = expenses.filter { it.date >= startOfToday }.sumOf { it.amount }
 
                 TransactionListUiState(
-                    transactions = transactions,
                     filteredTransactions = filtered,
                     categories = categories,
                     searchQuery = query,

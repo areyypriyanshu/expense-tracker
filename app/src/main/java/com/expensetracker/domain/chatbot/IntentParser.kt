@@ -1,5 +1,7 @@
 package com.expensetracker.domain.chatbot
 
+import com.expensetracker.domain.engine.CategoryEngine
+
 sealed class ChatbotIntent {
     object GetTotalSpending : ChatbotIntent()
     object GetTodaySpending : ChatbotIntent()
@@ -70,15 +72,7 @@ class IntentParser {
 
             // Category transactions
             cleanInput.contains("transaction") && (cleanInput.contains("on ") || cleanInput.contains("for ") || cleanInput.contains("in ") || cleanInput.contains("category") || cleanInput.contains("food") || cleanInput.contains("travel") || cleanInput.contains("shopping") || cleanInput.contains("bill")) -> {
-                val category = extractCategory(cleanInput).ifBlank {
-                    when {
-                        cleanInput.contains("food") || cleanInput.contains("dining") -> "Food & Dining"
-                        cleanInput.contains("travel") || cleanInput.contains("trip") -> "Travel"
-                        cleanInput.contains("shopping") -> "Shopping"
-                        cleanInput.contains("bill") || cleanInput.contains("utility") -> "Bills & Utilities"
-                        else -> ""
-                    }
-                }
+                val category = extractCategory(cleanInput)
                 if (category.isNotBlank()) {
                     ChatbotIntent.GetCategoryTransactions(category)
                 } else {
@@ -88,15 +82,7 @@ class IntentParser {
 
             // Category budget status
             cleanInput.contains("budget") && (extractCategory(cleanInput).isNotBlank() || cleanInput.contains("food") || cleanInput.contains("travel") || cleanInput.contains("shopping") || cleanInput.contains("bill")) -> {
-                val category = extractCategory(cleanInput).ifBlank {
-                    when {
-                        cleanInput.contains("food") || cleanInput.contains("dining") -> "Food & Dining"
-                        cleanInput.contains("travel") || cleanInput.contains("trip") -> "Travel"
-                        cleanInput.contains("shopping") -> "Shopping"
-                        cleanInput.contains("bill") || cleanInput.contains("utility") -> "Bills & Utilities"
-                        else -> ""
-                    }
-                }
+                val category = extractCategory(cleanInput)
                 if (category.isNotBlank()) ChatbotIntent.GetCategoryBudgetStatus(category) else ChatbotIntent.GetBudgetStatus
             }
 
@@ -110,23 +96,7 @@ class IntentParser {
             // Category spending (more natural phrases)
             (cleanInput.contains("on ") || cleanInput.contains("for ") || cleanInput.contains("in ") || cleanInput.contains("category") ||
              cleanInput.contains("food") || cleanInput.contains("travel") || cleanInput.contains("shopping") || cleanInput.contains("bill") || cleanInput.contains("transport")) -> {
-                val category = extractCategory(cleanInput).ifBlank {
-                    // Direct keyword scan as fallback
-                    when {
-                        cleanInput.contains("food") || cleanInput.contains("dining") || cleanInput.contains("restaurant") -> "Food & Dining"
-                        cleanInput.contains("travel") || cleanInput.contains("trip") || cleanInput.contains("flight") -> "Travel"
-                        cleanInput.contains("shopping") || cleanInput.contains("retail") -> "Shopping"
-                        cleanInput.contains("bill") || cleanInput.contains("utility") || cleanInput.contains("electric") || cleanInput.contains("water") || cleanInput.contains("internet") || cleanInput.contains("phone") -> "Bills & Utilities"
-                        cleanInput.contains("transport") || cleanInput.contains("transportation") || cleanInput.contains("car") -> "Transportation"
-                        cleanInput.contains("entertainment") || cleanInput.contains("movie") || cleanInput.contains("game") -> "Entertainment"
-                        cleanInput.contains("health") || cleanInput.contains("doctor") || cleanInput.contains("medical") -> "Healthcare"
-                        cleanInput.contains("education") || cleanInput.contains("school") || cleanInput.contains("study") -> "Education"
-                        cleanInput.contains("groceries") || cleanInput.contains("supermarket") -> "Groceries"
-                        cleanInput.contains("personal") || cleanInput.contains("beauty") || cleanInput.contains("spa") -> "Personal Care"
-                        cleanInput.contains("income") || cleanInput.contains("salary") || cleanInput.contains("earn") -> "Income"
-                        else -> ""
-                    }
-                }
+                val category = extractCategory(cleanInput)
                 if (category.isNotBlank()) {
                     ChatbotIntent.GetCategorySpending(category)
                 } else {
@@ -314,43 +284,12 @@ class IntentParser {
                 return normalizeCategory(cleaned)
             }
         }
-        // Keyword-based fallback for phrases like "Food expenses?" or "Travel spending"
-        val keywords = listOf(
-            "food" to "Food & Dining", "dining" to "Food & Dining", "restaurant" to "Food & Dining", "eat" to "Food & Dining",
-            "travel" to "Travel", "trip" to "Travel", "vacation" to "Travel", "flight" to "Travel",
-            "shopping" to "Shopping", "retail" to "Shopping", "store" to "Shopping",
-            "bill" to "Bills & Utilities", "utility" to "Bills & Utilities", "electric" to "Bills & Utilities", "water" to "Bills & Utilities", "gas" to "Bills & Utilities", "internet" to "Bills & Utilities", "phone" to "Bills & Utilities",
-            "transport" to "Transportation", "transportation" to "Transportation", "fuel" to "Transportation", "car" to "Transportation",
-            "entertainment" to "Entertainment", "movie" to "Entertainment", "game" to "Entertainment", "fun" to "Entertainment",
-            "health" to "Healthcare", "doctor" to "Healthcare", "medical" to "Healthcare", "pharmacy" to "Healthcare",
-            "education" to "Education", "study" to "Education", "school" to "Education", "course" to "Education",
-            "groceries" to "Groceries", "grocery" to "Groceries", "supermarket" to "Groceries",
-            "personal" to "Personal Care", "care" to "Personal Care", "beauty" to "Personal Care", "spa" to "Personal Care",
-            "income" to "Income", "salary" to "Income", "earn" to "Income", "wage" to "Income"
-        )
-        for ((kw, cat) in keywords) {
-            if (input.contains("$kw ") || input.contains("$kw?")) {
-                return cat
-            }
-        }
-        return ""
+        // Keyword-based fallback for phrases like "Food expenses?" or "Travel spending".
+        // Returns "" (not "Other") so callers can keep their own fallbacks.
+        val guess = CategoryEngine.categorizeText(input)
+        return if (guess == CategoryEngine.FALLBACK_CATEGORY) "" else guess
     }
 
-    private fun normalizeCategory(value: String): String {
-        val lowered = value.lowercase().trim()
-        return when {
-            lowered.contains("food") || lowered.contains("dining") || lowered.contains("restaurant") || lowered.contains("eat") -> "Food & Dining"
-            lowered.contains("travel") || lowered.contains("trip") || lowered.contains("vacation") || lowered.contains("flight") -> "Travel"
-            lowered.contains("shopping") || lowered.contains("retail") || lowered.contains("store") -> "Shopping"
-            lowered.contains("bill") || lowered.contains("utility") || lowered.contains("electric") || lowered.contains("water") || lowered.contains("gas") || lowered.contains("internet") || lowered.contains("phone") -> "Bills & Utilities"
-            lowered.contains("transport") || lowered.contains("transportation") || lowered.contains("fuel") || lowered.contains("gas") || lowered.contains("car") -> "Transportation"
-            lowered.contains("entertainment") || lowered.contains("movie") || lowered.contains("game") || lowered.contains("fun") -> "Entertainment"
-            lowered.contains("health") || lowered.contains("doctor") || lowered.contains("medical") || lowered.contains("pharmacy") -> "Healthcare"
-            lowered.contains("education") || lowered.contains("study") || lowered.contains("school") || lowered.contains("course") -> "Education"
-            lowered.contains("groceries") || lowered.contains("grocery") || lowered.contains("supermarket") -> "Groceries"
-            lowered.contains("personal") || lowered.contains("care") || lowered.contains("beauty") || lowered.contains("spa") -> "Personal Care"
-            lowered.contains("income") || lowered.contains("salary") || lowered.contains("earn") || lowered.contains("wage") -> "Income"
-            else -> value.replaceFirstChar { it.uppercase() }
-        }
-    }
+    private fun normalizeCategory(value: String): String =
+        CategoryEngine.resolveCategoryName(value)
 }

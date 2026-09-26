@@ -2,6 +2,7 @@ package com.expensetracker.data.repository
 
 import com.expensetracker.data.local.dao.*
 import com.expensetracker.data.model.*
+import com.expensetracker.domain.engine.CategoryEngine
 import kotlinx.coroutines.flow.Flow
 import java.time.LocalDateTime
 import java.time.temporal.TemporalAdjusters
@@ -66,12 +67,7 @@ class TransactionRepository(private val transactionDao: TransactionDao) {
     }
 
     private fun sanitizeCategory(category: String): String {
-        val allowedCategories = listOf(
-            "Food & Dining", "Transportation", "Shopping", "Entertainment",
-            "Bills & Utilities", "Healthcare", "Education", "Groceries",
-            "Personal Care", "Travel", "Income", "Investment", "Gift", "Other"
-        )
-        return if (allowedCategories.contains(category)) category else "Other"
+        return if (CategoryEngine.isSupportedCategory(category)) category else CategoryEngine.FALLBACK_CATEGORY
     }
 
     suspend fun deleteTransaction(transaction: Transaction) =

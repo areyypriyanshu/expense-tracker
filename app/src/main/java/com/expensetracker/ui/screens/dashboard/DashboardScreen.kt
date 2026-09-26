@@ -7,6 +7,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import com.expensetracker.ui.components.ScrollAwareBlurScrim
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -92,78 +94,83 @@ fun DashboardScreen(
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
             } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding),
-                    contentPadding = PaddingValues(bottom = 16.dp + bottomContentPadding)
-                ) {
-                    item {
-                        BalanceOverviewCard(
-                            monthlySpend = uiState.monthlySpend,
-                            weeklySpend = uiState.weeklySpend,
-                            currency = uiState.baseCurrency,
-                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
-                        )
-                    }
+                val listState = rememberLazyListState()
 
-                    if (uiState.categoryBreakdown.isNotEmpty()) {
+                ScrollAwareBlurScrim(listState = listState) {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(padding),
+                        contentPadding = PaddingValues(bottom = 16.dp + bottomContentPadding)
+                    ) {
                         item {
-                            SpendingByCategorySection(
-                                breakdown = uiState.categoryBreakdown,
+                            BalanceOverviewCard(
+                                monthlySpend = uiState.monthlySpend,
+                                weeklySpend = uiState.weeklySpend,
                                 currency = uiState.baseCurrency,
-                                onSeeAll = onNavigateToAnalytics,
-                                modifier = Modifier.padding(vertical = 8.dp)
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
                             )
                         }
-                    }
 
-                    if (uiState.budgetStatuses.isNotEmpty()) {
+                        if (uiState.categoryBreakdown.isNotEmpty()) {
+                            item {
+                                SpendingByCategorySection(
+                                    breakdown = uiState.categoryBreakdown,
+                                    currency = uiState.baseCurrency,
+                                    onSeeAll = onNavigateToAnalytics,
+                                    modifier = Modifier.padding(vertical = 8.dp)
+                                )
+                            }
+                        }
+
+                        if (uiState.budgetStatuses.isNotEmpty()) {
+                            item {
+                                BudgetOverviewSection(
+                                    budgetStatuses = uiState.budgetStatuses,
+                                    currency = uiState.baseCurrency,
+                                    modifier = Modifier.padding(vertical = 8.dp)
+                                )
+                            }
+                        }
+
+                        if (uiState.insights.isNotEmpty()) {
+                            item {
+                                InsightsSection(
+                                    insights = uiState.insights,
+                                    modifier = Modifier.padding(vertical = 8.dp)
+                                )
+                            }
+                        }
+
                         item {
-                            BudgetOverviewSection(
-                                budgetStatuses = uiState.budgetStatuses,
-                                currency = uiState.baseCurrency,
-                                modifier = Modifier.padding(vertical = 8.dp)
+                            SectionHeader(
+                                title = "Recent Transactions",
+                                action = "See All",
+                                onAction = onViewAllTransactions
                             )
                         }
-                    }
 
-                    if (uiState.insights.isNotEmpty()) {
-                        item {
-                            InsightsSection(
-                                insights = uiState.insights,
-                                modifier = Modifier.padding(vertical = 8.dp)
-                            )
+                        if (uiState.recentTransactions.isEmpty()) {
+                            item {
+                                EmptyState(
+                                    icon = Icons.Outlined.Receipt,
+                                    title = "No transactions yet",
+                                    subtitle = "Tap the + button below to add your first expense",
+                                    modifier = Modifier.padding(horizontal = 20.dp)
+                                )
+                            }
+                        } else {
+                            items(uiState.recentTransactions) { transaction ->
+                                TransactionItem(
+                                    transaction = transaction,
+                                    onClick = { },
+                                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
+                                )
+                            }
                         }
                     }
-
-                    item {
-                        SectionHeader(
-                            title = "Recent Transactions",
-                            action = "See All",
-                            onAction = onViewAllTransactions
-                        )
-                    }
-
-                    if (uiState.recentTransactions.isEmpty()) {
-                        item {
-                            EmptyState(
-                                icon = Icons.Outlined.Receipt,
-                                title = "No transactions yet",
-                                subtitle = "Tap the + button below to add your first expense",
-                                modifier = Modifier.padding(horizontal = 20.dp)
-                            )
-                        }
-                    } else {
-                        items(uiState.recentTransactions) { transaction ->
-                            TransactionItem(
-                                transaction = transaction,
-                                onClick = { },
-                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
-                            )
-                        }
-                    }
-                }
+                } // end ScrollAwareBlurScrim
             }
         }
     }

@@ -10,7 +10,6 @@ data class Transaction(
     val id: Long = 0,
     val amount: Double,
     val currency: String,
-    val convertedAmount: Double? = null,
     val category: String,
     val note: String = "",
     val date: LocalDateTime = LocalDateTime.now(),
@@ -41,7 +40,7 @@ data class Budget(
 )
 
 enum class BudgetPeriod {
-    WEEKLY, MONTHLY
+    DAILY, WEEKLY, MONTHLY
 }
 
 @Entity(tableName = "recurring_rules")

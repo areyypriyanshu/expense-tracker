@@ -14,8 +14,9 @@ Automatically syncs transactions by parsing incoming transactional SMS messages 
 * **Auto-Categorization:** Uses keyword heuristics (e.g., `swiggy` $\rightarrow$ "Food & Dining", `uber` $\rightarrow$ "Transportation") to group expenses.
 
 ### 2. 📊 Rich Charts & Analytics
-Understand your spending patterns through clean, interactive visualizations.
-* **Vico Charting:** Integrates the Vico Compose charting library for seamless Material 3-styled bar graphs and line charts showing income vs. expense.
+Understand your spending patterns through clean, scannable visualizations.
+* **Hand-drawn Charts:** The bar chart and category donut are drawn directly on a Compose `Canvas` (`AnimatedBarChart`, `DonutChartSection` in `AnalyticsScreen`) rather than through a charting library. This keeps the visuals on the same palette as the rest of the app and avoids a charting dependency.
+* **Calm Reveals:** The total, then the bars, then the donut animate in sequence off shared `MotionTokens` so the screen resolves top-to-bottom instead of everything moving at once.
 * **Category Breakdown:** Aggregated spending charts that show where money goes over specified date ranges.
 
 ### 3. 🎯 Budgets & Threshold Alerts
@@ -52,10 +53,11 @@ Ask plain-language questions about your finances without sending your data to a 
 ## 🎨 Design Philosophy (`UI-SPEC`)
 
 The user interface follows a specialized design contract outlined in [UI-SPEC.md](UI-SPEC.md):
-* **Palette:** Calm, warm off-white surfaces (`#FAFAF9`), deep green primary tones (`#1B4332`), muted secondary blue (`#2D6A4F`), soft gold accents, and restricted status colors.
+* **Palette:** Calm, warm off-white surfaces (`#FAF8F2` background, `#FFFCF7` surface), deep green primary (`#0F3D34`), muted secondary blue (`#345E7D`), soft gold accent (`#DFAF3F`), and restricted status colors.
 * **Shapes:** Clean, compact 8dp rounded corner cards for layouts, reserving circles strictly for icons and floating action buttons.
 * **Elevation & Density:** Uses subtle borders and tonal surface overlays instead of heavy drop shadows. High visual density organizes financial data efficiently and cleanly.
 * **Typography:** Bold fonts reserved for key monetary figures and screen headers; otherwise uses medium weights to maintain a calm hierarchy.
+* **Motion:** Every duration, curve and reveal stagger comes from `MotionTokens` (`ui/theme/Motion.kt`) — calm easing that starts unhurried and settles without a hard stop, matched durations within a single gesture, tweens rather than springs on size changes, and full respect for the system "remove animations" setting.
 
 ---
 
@@ -66,7 +68,7 @@ The user interface follows a specialized design contract outlined in [UI-SPEC.md
 * **Database:** Room (2.7.0) with Coroutines Flow for reactive updates
 * **Local Settings:** Jetpack DataStore Preferences (1.0.0)
 * **Background Processing:** Jetpack WorkManager (2.9.0)
-* **Charting:** Vico Compose (1.14.0)
+* **Charting:** None — charts are drawn directly on a Compose `Canvas`. *(The `com.patrykandpatrick.vico` dependency is still declared in `app/build.gradle.kts` but is no longer referenced by any source file; it can be dropped.)*
 
 ---
 
@@ -77,14 +79,16 @@ The project is structured following clean coding guidelines and MVVM (Model-View
 ```
 app/src/main/java/com/expensetracker/
 ├── data/
-│   ├── local/          # Room DB, Dao declarations, PreferencesManager (DataStore)
+│   ├── local/          # Room database and PreferencesManager (DataStore)
+│   │   ├── dao/        # Room DAO declarations
+│   │   └── datastore/  # DataStore-backed settings storage
 │   ├── model/          # Room Entity definitions (Transaction, Budget, Category, etc.)
 │   └── repository/     # Repositories facilitating data layer abstraction
 ├── domain/
 │   ├── chatbot/        # Local natural-language intent parsing for the Finance Assistant
 │   ├── engine/         # Heuristic engines (CategoryEngine, BudgetEngine, ReportEngine)
-│   ├── model/          # Shared domain utilities and UI-state models
-│   └── usecase/        # Business-logic wrappers (Transaction and Budget use cases)
+│   ├── model/          # Shared domain UI-state models and monetary helpers
+│   └── util/           # Shared domain helpers (date handling)
 ├── services/
 │   ├── alerts/         # Budget threshold warnings and notification services
 │   ├── currency/       # Offline exchange rate caching and conversions
@@ -94,10 +98,11 @@ app/src/main/java/com/expensetracker/
 │   ├── receipt/        # On-device OCR and receipt-detail parsing
 │   └── upisync/        # WorkManager background workers and SMS parsers
 └── ui/
-    ├── components/     # Reusable layout UI components
+    ├── components/     # Reusable layout UI components and the scroll-aware blur scrim
     ├── navigation/     # Jetpack Compose navigation configuration
-    ├── screens/        # Feature screens (Dashboard, Assistant, Transactions, Analytics, UPI Sync, etc.)
-    └── theme/          # Material 3 typography, shapes, and color configurations
+    ├── screens/        # Feature screens (Dashboard, Transactions, Analytics, Budgets,
+    │                   #   Recurring, Import, Reports, Assistant, UPI Sync, Settings)
+    └── theme/          # Material 3 color, typography, and the shared MotionTokens system
 ```
 
 The Compose UI follows a unidirectional MVVM flow: screens observe `StateFlow` from feature ViewModels, ViewModels coordinate repositories, domain engines, and services, and repositories persist data through Room and DataStore. The Finance Assistant is a feature of this same flow: `ChatbotScreen` → `ChatbotViewModel` → local `IntentParser`, repositories, and `BudgetEngine`.
@@ -118,9 +123,10 @@ On first launch, the app shows a one-time prompt that sends users to **UPI Auto-
 ## 🚀 Getting Started
 
 ### Prerequisites
-* **Android Studio:** Jellyfish | 2024.1.1 or newer.
+* **Android Studio:** Ladybug | 2024.2.1 or newer. (The project uses Android Gradle Plugin 8.7.3, which Jellyfish / 2024.1.1 cannot build.)
 * **JDK:** Version 17.
 * **SDK:** Compile SDK 35, target SDK 34, minimum SDK 26 (Android 8.0).
+* **Gradle:** 9.2.1, supplied by the checked-in wrapper — no local Gradle install needed.
 
 ### Build & Run
 1. Clone this repository:
@@ -138,6 +144,8 @@ From the project root, the same checks can be run from a terminal:
 ./gradlew assembleDebug
 ./gradlew test
 ```
+
+> **Known failures:** `./gradlew test` currently reports 2 failing tests out of 63 — `ReceiptParserTest.doesNotAssociateUnrelatedTaxOrItemLinesWithMultilineTotal` and `ReceiptDatasetEvaluationTest.evaluateDataset`. Both are pre-existing receipt-parsing issues and are unrelated to the UI.
 
 ---
 

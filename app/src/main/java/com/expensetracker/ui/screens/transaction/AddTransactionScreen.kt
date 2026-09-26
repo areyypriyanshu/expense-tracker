@@ -184,7 +184,7 @@ fun AddTransactionScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(scrollState)
-                .animateContentSize(animationSpec = MotionTokens.spring())
+                .animateContentSize(animationSpec = MotionTokens.gentle())
                 .padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -277,10 +277,8 @@ fun AddTransactionScreen(
 
             AnimatedVisibility(
                 visible = showMoreOptions,
-                enter = expandVertically(animationSpec = MotionTokens.enterTween()) +
-                    fadeIn(animationSpec = MotionTokens.enterTween(durationMillis = 180)),
-                exit = shrinkVertically(animationSpec = MotionTokens.exitTween(durationMillis = 180)) +
-                    fadeOut(animationSpec = MotionTokens.exitTween())
+                enter = MotionTokens.expandWithFade(),
+                exit = MotionTokens.collapseWithFade()
             ) {
                 MoreOptionsSection(
                     note = uiState.note,
@@ -735,7 +733,7 @@ private fun CategoryCard(
     )
     val selectionScale by animateFloatAsState(
         targetValue = if (isSelected) 1.03f else 1f,
-        animationSpec = MotionTokens.spring(),
+        animationSpec = MotionTokens.gentle(durationMillis = MotionTokens.DurationFast),
         label = "${name}CategoryScale"
     )
 

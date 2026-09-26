@@ -11,7 +11,7 @@ Refresh the existing Android UI into a minimal, calm expense-tracking experience
 - Elevation: avoid heavy shadows. Use subtle borders and tonal surfaces for separation.
 - Typography: medium weights for hierarchy, bold only for key money values and primary screen titles.
 - Density: keep financial information compact and scannable with predictable spacing.
-- Motion: use existing lightweight transitions only; avoid decorative motion.
+- Motion: use existing lightweight transitions only; avoid decorative motion. Durations, curves and staggers come from `MotionTokens` — one token per gesture, never hand-tuned numbers at a call site.
 
 ## Interaction Contract
 

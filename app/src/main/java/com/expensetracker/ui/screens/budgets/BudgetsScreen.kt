@@ -3,13 +3,10 @@ package com.expensetracker.ui.screens.budgets
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -29,6 +26,7 @@ import com.expensetracker.domain.engine.BudgetStatus
 import com.expensetracker.services.currency.CurrencyService
 import com.expensetracker.ui.components.AppHeader
 import com.expensetracker.ui.components.EmptyState
+import com.expensetracker.ui.components.ScrollAwareBlurScrim
 import com.expensetracker.ui.components.SmoothLinearProgressIndicator
 import com.expensetracker.ui.components.StyledAlertDialog
 import com.expensetracker.ui.theme.*
@@ -85,21 +83,25 @@ fun BudgetsScreen(
                 modifier = Modifier.padding(padding)
             )
         } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 16.dp + bottomContentPadding),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(uiState.budgetStatuses) { status ->
-                    BudgetCard(
-                        status = status,
-                        currency = uiState.baseCurrency,
-                        onDelete = { viewModel.deleteBudget(status.budget) }
-                    )
-                }
+            val listState = rememberLazyListState()
+            ScrollAwareBlurScrim(listState = listState) {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 16.dp + bottomContentPadding),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(uiState.budgetStatuses) { status ->
+                        BudgetCard(
+                            status = status,
+                            currency = uiState.baseCurrency,
+                            onDelete = { viewModel.deleteBudget(status.budget) }
+                        )
+                    }
 
+                }
             }
         }
     }
@@ -136,7 +138,7 @@ private fun BudgetCard(
     )
 
     Card(
-        modifier = Modifier.animateContentSize(animationSpec = MotionTokens.spring()),
+        modifier = Modifier.animateContentSize(animationSpec = MotionTokens.gentle()),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = RoundedCornerShape(8.dp),
         border = CardDefaults.outlinedCardBorder(),
@@ -239,10 +241,8 @@ private fun BudgetCard(
 
             AnimatedVisibility(
                 visible = status.shouldAlert && !status.isOverBudget,
-                enter = expandVertically(animationSpec = MotionTokens.enterTween()) +
-                    fadeIn(animationSpec = MotionTokens.enterTween(durationMillis = 180)),
-                exit = shrinkVertically(animationSpec = MotionTokens.exitTween(durationMillis = 180)) +
-                    fadeOut(animationSpec = MotionTokens.exitTween())
+                enter = MotionTokens.expandWithFade(),
+                exit = MotionTokens.collapseWithFade()
             ) {
                 Column {
                     Spacer(modifier = Modifier.height(12.dp))
@@ -273,10 +273,8 @@ private fun BudgetCard(
 
             AnimatedVisibility(
                 visible = status.isOverBudget,
-                enter = expandVertically(animationSpec = MotionTokens.enterTween()) +
-                    fadeIn(animationSpec = MotionTokens.enterTween(durationMillis = 180)),
-                exit = shrinkVertically(animationSpec = MotionTokens.exitTween(durationMillis = 180)) +
-                    fadeOut(animationSpec = MotionTokens.exitTween())
+                enter = MotionTokens.expandWithFade(),
+                exit = MotionTokens.collapseWithFade()
             ) {
                 Column {
                     Spacer(modifier = Modifier.height(12.dp))

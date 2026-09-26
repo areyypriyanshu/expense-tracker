@@ -1,7 +1,8 @@
 package com.expensetracker.services.upisync
 
+import com.expensetracker.domain.engine.CategoryEngine
+import com.expensetracker.domain.util.DateUtil
 import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 import java.util.regex.Pattern
 
 data class UpiSmsResult(
@@ -20,15 +21,6 @@ enum class UpiTransactionType {
 }
 
 object UpiSmsParser {
-    
-    private val datePatterns = listOf(
-        DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"),
-        DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm"),
-        DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm"),
-        DateTimeFormatter.ofPattern("dd/MM/yy HH:mm"),
-        DateTimeFormatter.ofPattern("dd-MM-yyyy"),
-        DateTimeFormatter.ofPattern("dd/MM/yyyy")
-    )
     
     private val upiPatterns = listOf(
         Pattern.compile("""(?:Rs\.?|₹|INR)\s*([\d,]+\.?\d*)\s*(?:debited|credited|sent|received|paid|transfer)""", Pattern.CASE_INSENSITIVE),
@@ -290,55 +282,15 @@ object UpiSmsParser {
         for (regex in dateRegexes) {
             val match = regex.find(message)
             if (match != null) {
-                val dateStr = match.groupValues[1]
-                for (formatter in datePatterns) {
-                    try {
-                        return LocalDateTime.parse(dateStr, formatter)
-                    } catch (_: Exception) {
-                        try {
-                            val date = java.time.LocalDate.parse(dateStr.take(10), formatter)
-                            return date.atStartOfDay()
-                        } catch (_: Exception) {
-                            // Try next format
-                        }
-                    }
-                }
+                return DateUtil.parseDateTimeOrNull(match.groupValues[1])
             }
         }
         
         return null
     }
     
-    fun categorizeFromMessage(message: String): String {
-        val boundedMessage = message.take(MAX_MESSAGE_LENGTH)
-        val lowerMessage = boundedMessage.lowercase()
-        
-        return when {
-            lowerMessage.containsAny("swiggy", "zomato", "dominos", "mcdonalds", "pizza", "restaurant", "cafe", "coffee") -> "Food & Dining"
-            lowerMessage.containsAny("uber", "ola", "auto", "taxi", "metro", "rapido", "fuel", "petrol") -> "Transportation"
-            lowerMessage.containsAny("amazon", "flipkart", "myntra", "shopping", "store", "myntra") -> "Shopping"
-            lowerMessage.containsAny("netflix", "hotstar", "prime", "spotify", "movie", "youtube") -> "Entertainment"
-            lowerMessage.containsAny("airtel", "jio", "vodafone", "bsnl", "recharge", "phone") -> "Bills & Utilities"
-            lowerMessage.containsAny("electricity", "power", "bescom", "reliance energy") -> "Bills & Utilities"
-            lowerMessage.containsAny("gas", "indane", "hp gas", "bharat gas") -> "Bills & Utilities"
-            lowerMessage.containsAny("water bill", "bwssb", "municipal") -> "Bills & Utilities"
-            lowerMessage.containsAny("pharmacy", "hospital", "doctor", "medical", "health") -> "Healthcare"
-            lowerMessage.containsAny("school", "college", "fee", "tution", "education") -> "Education"
-            lowerMessage.containsAny("grocery", "supermarket", "bigbasket", "market", "kirana") -> "Groceries"
-            lowerMessage.containsAny("salon", "gym", "fitness", "spa", "beauty") -> "Personal Care"
-            lowerMessage.containsAny("hotel", "flight", "booking", "travel", "irctc") -> "Travel"
-            lowerMessage.containsAny("salary", "credited", "deposit", "income", "refund", "cashback") -> "Income"
-            lowerMessage.containsAny("investment", "sip", "mutual fund", "stock") -> "Investment"
-            lowerMessage.containsAny("loan", "emi", "insurance", "premium") -> "Bills & Utilities"
-            lowerMessage.containsAny("transfer", "upi", "imps", "neft", "rtgs", "nft") -> "Transfer"
-            lowerMessage.containsAny("atm", "cash", "withdrawal") -> "Cash"
-            else -> "Other"
-        }
-    }
-    
-    private fun String.containsAny(vararg words: String): Boolean {
-        return words.any { this.contains(it) }
-    }
+    fun categorizeFromMessage(message: String): String =
+        CategoryEngine.categorizeText(message.take(MAX_MESSAGE_LENGTH))
 }
 
 private const val MAX_MESSAGE_LENGTH = 500

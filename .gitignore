@@ -6,6 +6,17 @@ build/
 .gradle/
 .kotlin/
 
+# Packaged APKs / bundles produced by a local release build
+*.apk
+*.aab
+
+# Native build output (CameraX and ML Kit pull in native libraries)
+.externalNativeBuild/
+.cxx/
+
+# Heap dumps from an OOM or a debugger session
+*.hprof
+
 # IDE settings
 .idea/
 *.iml
@@ -14,6 +25,10 @@ build/
 
 # macOS
 .DS_Store
+
+# Windows
+Thumbs.db
+Desktop.ini
 
 # Local configuration
 local.properties
@@ -31,9 +46,14 @@ signing.properties
 captures/
 *.log
 
+# Leftovers from a rejected patch
+*.orig
+*.rej
+
 # Project specific exclusions
 expense_tracker_markdown_pack/
 .opencode/
+.claude/
 AGENTS.md
 graphify-out/
 

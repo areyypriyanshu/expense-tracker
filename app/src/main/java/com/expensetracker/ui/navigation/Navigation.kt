@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.compose.animation.*
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -101,6 +102,12 @@ sealed class Screen(
 // clear 64 + 12 dp to stay fully visible above the glass.
 private val NavBarHeight = 76.dp
 
+class ScrollBlurState {
+    var isScrolled by mutableStateOf(false)
+}
+
+val LocalScrollBlurProvider = compositionLocalOf { ScrollBlurState() }
+
 @Composable
 fun ExpenseTrackerApp(
     database: ExpenseDatabase,
@@ -142,20 +149,24 @@ fun ExpenseTrackerApp(
     @OptIn(ExperimentalHazeMaterialsApi::class)
     val hazeStyle = HazeMaterials.thin()
 
+    val scrollBlurState = remember { ScrollBlurState() }
+
     // Full-screen Box: content draws edge-to-edge; glass nav bar floats on top
     Box(modifier = Modifier.fillMaxSize()) {
 
-        // ── Scrollable content layer (blur SOURCE) ────────────────────────
-        AppNavHost(
-            navController = navController,
-            database = database,
-            preferencesManager = preferencesManager,
-            context = context,
-            bottomContentPadding = bottomContentPadding,
-            modifier = Modifier
-                .fillMaxSize()
-                .hazeSource(hazeState)
-        )
+        CompositionLocalProvider(LocalScrollBlurProvider provides scrollBlurState) {
+            // ── Scrollable content layer (blur SOURCE) ────────────────────────
+            AppNavHost(
+                navController = navController,
+                database = database,
+                preferencesManager = preferencesManager,
+                context = context,
+                bottomContentPadding = bottomContentPadding,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .hazeSource(hazeState)
+            )
+        }
 
         // ── Floating glass navigation bar (blur CONSUMER) ────────────────
         AnimatedVisibility(
@@ -174,6 +185,7 @@ fun ExpenseTrackerApp(
                 hazeState = hazeState,
                 hazeStyle = hazeStyle,
                 isDark = isDark,
+                isScrolled = scrollBlurState.isScrolled,
                 currentDestination = currentDestination,
                 onNavigate = { route ->
                     navController.navigate(route) {
@@ -219,6 +231,7 @@ private fun FloatingGlassNavBar(
     hazeState: HazeState,
     hazeStyle: HazeStyle,
     isDark: Boolean,
+    isScrolled: Boolean,
     currentDestination: androidx.navigation.NavDestination?,
     onNavigate: (String) -> Unit
 ) {
@@ -228,6 +241,14 @@ private fun FloatingGlassNavBar(
     } else {
         Color.Black.copy(alpha = 0.08f)
     }
+
+    val blurRadius by animateDpAsState(
+        targetValue = if (isScrolled) 4.dp else 20.dp,
+        // Scroll-driven: short enough that the glass keeps up with the list
+        // instead of lagging a frame behind it.
+        animationSpec = MotionTokens.scrollTween(),
+        label = "navBarBlur"
+    )
 
     Surface(
         modifier = Modifier
@@ -246,10 +267,10 @@ private fun FloatingGlassNavBar(
                 state = hazeState,
                 style = hazeStyle,
             ) {
-                blurRadius = 20.dp
+                this.blurRadius = blurRadius
                 noiseFactor = 0.08f
                 if (!isDark) {
-                    tints = listOf(HazeTint(Color(0xFFFFFCF7).copy(alpha = 0.55f)))
+                    tints = listOf(HazeTint(Color(0xFFFFFCF7).copy(alpha = if (isScrolled) 0.25f else 0.55f)))
                 }
             }
             .border(width = 1.dp, color = borderColor, shape = shape),
@@ -315,7 +336,9 @@ private fun FloatingGlassNavBar(
                     ) {
                         val iconScale by animateFloatAsState(
                             targetValue = if (selected) 1.06f else 1f,
-                            animationSpec = MotionTokens.spring(),
+                            animationSpec = MotionTokens.gentle(
+                                durationMillis = MotionTokens.DurationFast
+                            ),
                             label = "${screen.route}IconScale"
                         )
                         Crossfade(

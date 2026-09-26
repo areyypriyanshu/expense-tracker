@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -84,79 +85,84 @@ fun TransactionsScreen(
             }
         }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .animateContentSize(animationSpec = MotionTokens.spring())
-        ) {
-            AnimatedVisibility(
-                visible = showFilters,
-                enter = expandVertically(animationSpec = MotionTokens.enterTween()) +
-                    fadeIn(animationSpec = MotionTokens.enterTween(durationMillis = 180)),
-                exit = shrinkVertically(animationSpec = MotionTokens.exitTween(durationMillis = 180)) +
-                    fadeOut(animationSpec = MotionTokens.exitTween())
-            ) {
-                FilterSection(
-                    categories = uiState.categories,
-                    selectedCategory = uiState.selectedCategory,
-                    onCategorySelected = viewModel::onCategorySelected,
-                    onClearFilters = {
-                        viewModel.onCategorySelected(null)
-                    }
-                )
-            }
+        val listState = rememberLazyListState()
 
-            if (uiState.isLoading) {
-                LazyColumn(
-                    contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 20.dp + bottomContentPadding),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+        // ScrollAwareBlurScrim tracks listState and paints an animated gradient
+        // scrim in the nav-bar strip; it also pushes isScrolled into
+        // LocalScrollBlurProvider so the glass nav bar adjusts its own blur.
+        ScrollAwareBlurScrim(listState = listState) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .animateContentSize(animationSpec = MotionTokens.gentle())
+            ) {
+                AnimatedVisibility(
+                    visible = showFilters,
+                    enter = MotionTokens.expandWithFade(),
+                    exit = MotionTokens.collapseWithFade()
                 ) {
-                    items(5) {
-                        LoadingShimmer()
-                    }
-                }
-            } else if (uiState.filteredTransactions.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    EmptyState(
-                        icon = if (uiState.searchQuery.isNotEmpty() || uiState.selectedCategory != null) 
-                            Icons.Outlined.SearchOff else Icons.Outlined.Receipt,
-                        title = if (uiState.searchQuery.isNotEmpty() || uiState.selectedCategory != null)
-                            "No matching transactions"
-                        else
-                            "No transactions yet",
-                        subtitle = if (uiState.searchQuery.isNotEmpty() || uiState.selectedCategory != null)
-                            "Try adjusting your search or filters"
-                        else
-                            "Start tracking your expenses by adding your first transaction",
-                        actionLabel = if (uiState.searchQuery.isEmpty() && uiState.selectedCategory == null) 
-                            "Add Expense" else null,
-                        onAction = if (uiState.searchQuery.isEmpty() && uiState.selectedCategory == null) 
-                            onAddTransaction else null
+                    FilterSection(
+                        categories = uiState.categories,
+                        selectedCategory = uiState.selectedCategory,
+                        onCategorySelected = viewModel::onCategorySelected,
+                        onClearFilters = {
+                            viewModel.onCategorySelected(null)
+                        }
                     )
                 }
-            } else {
-                LazyColumn(
-                    contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 8.dp + bottomContentPadding),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    items(
-                        items = uiState.filteredTransactions,
-                        key = { it.id }
-                    ) { transaction ->
-                        TransactionItem(
-                            transaction = transaction,
-                            onClick = { onTransactionClick(transaction.id) },
-                            onDelete = { transactionToDelete = transaction }
+
+                if (uiState.isLoading) {
+                    LazyColumn(
+                        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 20.dp + bottomContentPadding),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(5) {
+                            LoadingShimmer()
+                        }
+                    }
+                } else if (uiState.filteredTransactions.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        EmptyState(
+                            icon = if (uiState.searchQuery.isNotEmpty() || uiState.selectedCategory != null)
+                                Icons.Outlined.SearchOff else Icons.Outlined.Receipt,
+                            title = if (uiState.searchQuery.isNotEmpty() || uiState.selectedCategory != null)
+                                "No matching transactions"
+                            else
+                                "No transactions yet",
+                            subtitle = if (uiState.searchQuery.isNotEmpty() || uiState.selectedCategory != null)
+                                "Try adjusting your search or filters"
+                            else
+                                "Start tracking your expenses by adding your first transaction",
+                            actionLabel = if (uiState.searchQuery.isEmpty() && uiState.selectedCategory == null)
+                                "Add Expense" else null,
+                            onAction = if (uiState.searchQuery.isEmpty() && uiState.selectedCategory == null)
+                                onAddTransaction else null
                         )
                     }
-
+                } else {
+                    LazyColumn(
+                        state = listState,
+                        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 8.dp + bottomContentPadding),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        items(
+                            items = uiState.filteredTransactions,
+                            key = { it.id }
+                        ) { transaction ->
+                            TransactionItem(
+                                transaction = transaction,
+                                onClick = { onTransactionClick(transaction.id) },
+                                onDelete = { transactionToDelete = transaction }
+                            )
+                        }
+                    }
                 }
             }
-        }
+        } // end ScrollAwareBlurScrim
         
         if (transactionToDelete != null) {
             StyledAlertDialog(

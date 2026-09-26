@@ -1,8 +1,9 @@
 package com.expensetracker.services.import
 
 import com.expensetracker.data.model.Transaction
+import com.expensetracker.domain.engine.CategoryEngine
+import com.expensetracker.domain.util.DateUtil
 import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 
 data class ImportResult(
     val transactions: List<Transaction>,
@@ -23,17 +24,7 @@ enum class TransactionType {
 }
 
 object CsvParser {
-    
-    private val dateFormats = listOf(
-        DateTimeFormatter.ofPattern("dd/MM/yyyy"),
-        DateTimeFormatter.ofPattern("dd-MM-yyyy"),
-        DateTimeFormatter.ofPattern("dd.MM.yyyy"),
-        DateTimeFormatter.ofPattern("yyyy-MM-dd"),
-        DateTimeFormatter.ofPattern("MM/dd/yyyy"),
-        DateTimeFormatter.ofPattern("dd MMM yyyy"),
-        DateTimeFormatter.ofPattern("dd MMMM yyyy")
-    )
-    
+
     fun parse(content: String): ImportResult {
         if (content.length > MAX_INPUT_CHARS) {
             return ImportResult(emptyList(), listOf("File is too large"), 0)
@@ -106,7 +97,7 @@ object CsvParser {
                     
                     val (category, isIncome) = when (type) {
                         TransactionType.CREDIT -> {
-                            val cat = if (description.contains(Regex("(?i)(refund|cashback|reversal)"))) {
+                            val cat = if (CategoryEngine.isRefundOrCashback(description)) {
                                 "Refund"
                             } else {
                                 "Income"
@@ -192,21 +183,8 @@ object CsvParser {
         return -1
     }
     
-    private fun parseDate(dateStr: String): LocalDateTime? {
-        val cleanDate = dateStr.trim()
-        
-        for (formatter in dateFormats) {
-            try {
-                val date = java.time.LocalDate.parse(cleanDate, formatter)
-                return date.atStartOfDay()
-            } catch (_: Exception) {
-                // Try next format
-            }
-        }
-        
-        return null
-    }
-    
+    private fun parseDate(dateStr: String): LocalDateTime? = DateUtil.parseDateTimeOrNull(dateStr)
+
     private fun parseAmount(amountStr: String): Double {
         val clean = amountStr.take(MAX_FIELD_LENGTH).trim()
             .replace(",", "")
@@ -233,26 +211,8 @@ object CsvParser {
         }
     }
     
-    private fun categorizeTransaction(description: String): String {
-        val sanitizedDesc = description.take(200).lowercase()
-        
-        return when {
-            sanitizedDesc.containsAny("swiggy", "zomato", "dominos", "pizza", "restaurant", "cafe", "coffee", "food", "meal", "lunch", "dinner") -> "Food & Dining"
-            sanitizedDesc.containsAny("uber", "ola", "auto", "taxi", "metro", "rail", "bus", "fuel", "petrol") -> "Transportation"
-            sanitizedDesc.containsAny("amazon", "flipkart", "myntra", "shopping", "store", "mall") -> "Shopping"
-            sanitizedDesc.containsAny("netflix", "hotstar", "prime", "spotify", "movie", "youtube", "game") -> "Entertainment"
-            sanitizedDesc.containsAny("electricity", "water", "gas", "bill", "recharge", "broadband", "rent") -> "Bills & Utilities"
-            sanitizedDesc.containsAny("pharmacy", "hospital", "doctor", "medical", "medicine", "health") -> "Healthcare"
-            sanitizedDesc.containsAny("school", "college", "fee", "course", "book", "education") -> "Education"
-            sanitizedDesc.containsAny("grocery", "supermarket", "bigbasket", "market", "vegetable", "fruit") -> "Groceries"
-            sanitizedDesc.containsAny("salon", "gym", "fitness", "spa", "beauty") -> "Personal Care"
-            sanitizedDesc.containsAny("hotel", "flight", "travel", "booking", "vacation") -> "Travel"
-            sanitizedDesc.containsAny("transfer", "upi", "neft", "imps", "nft") -> "Other"
-            sanitizedDesc.containsAny("atm", "cash", "withdrawal") -> "Other"
-            sanitizedDesc.containsAny("salary", "credited", "deposit", "income", "freelance") -> "Income"
-            else -> "Other"
-        }
-    }
+    private fun categorizeTransaction(description: String): String =
+        CategoryEngine.categorizeText(description)
     
     private fun sanitizeForStorage(input: String): String {
         if (input.isBlank()) return ""
@@ -265,10 +225,6 @@ object CsvParser {
             .replace(Regex("\\p{C}"), "")
             .trim()
             .take(100)
-    }
-    
-    private fun String.containsAny(vararg words: String): Boolean {
-        return words.any { this.contains(it) }
     }
 
     private const val MAX_INPUT_CHARS = 2_000_000

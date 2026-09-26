@@ -64,6 +64,10 @@ class BudgetEngine(
     private fun getDateRange(period: BudgetPeriod): Pair<LocalDateTime, LocalDateTime> {
         val now = LocalDateTime.now()
         return when (period) {
+            BudgetPeriod.DAILY -> {
+                val startOfDay = now.toLocalDate().atStartOfDay()
+                startOfDay to now
+            }
             BudgetPeriod.WEEKLY -> {
                 val startOfWeek = now.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
                     .toLocalDate().atStartOfDay()

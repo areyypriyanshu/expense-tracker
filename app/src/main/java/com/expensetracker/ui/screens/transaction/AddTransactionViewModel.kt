@@ -16,6 +16,7 @@ import com.expensetracker.data.repository.TransactionRepository
 import com.expensetracker.domain.engine.CategoryEngine
 import com.expensetracker.domain.model.MonetaryUtil
 import com.expensetracker.domain.model.UiState
+import com.expensetracker.domain.util.DateUtil
 import com.expensetracker.services.receipt.ReceiptOcrResult
 import com.expensetracker.services.receipt.ReceiptOcrService
 import com.expensetracker.services.receipt.ReceiptScanResult
@@ -338,7 +339,7 @@ class AddTransactionViewModel(
             val merchantNote = result.merchant?.let(::sanitizeNote).orEmpty()
             val dateIsUsable = result.date?.let(::isReceiptDateInRange) == true
 
-            val formattedOcrDate = result.date?.format(java.time.format.DateTimeFormatter.ofPattern("d MMM uuuu", java.util.Locale.ENGLISH))
+            val formattedOcrDate = result.date?.format(DateUtil.RECEIPT_DISPLAY_FORMAT)
             val dateReviewMessage = when {
                 result.isDateAmbiguous -> " Multiple dates found; existing date was kept."
                 result.date != null && !dateIsUsable -> " Receipt date ($formattedOcrDate) is outside the allowed range and was not applied. Please select a valid date manually if needed."
@@ -366,38 +367,25 @@ class AddTransactionViewModel(
     private fun suggestCategory(text: String, categories: List<Category>): String? {
         if (categories.isEmpty() || text.isBlank()) return null
         val suggested = categoryEngine.autoCategorize(text, categories)
-        if (suggested != "Other") return suggested
+        if (suggested != CategoryEngine.FALLBACK_CATEGORY) return suggested
 
-        // Fallback heuristics for common receipt terms if autoCategorize returned "Other"
-        val lower = text.lowercase()
-        val foodKeywords = listOf(
-            "biriyani", "biryani", "chicken", "mutton", "roti", "dosa", "thali",
-            "paneer", "naan", "curry", "rice", "restaurant", "cafe", "dining",
-            "kitchen", "dhaba", "darshini", "bhavan", "tandoor", "hotel", "food"
-        )
-        if (foodKeywords.any { lower.contains(it) }) {
-            val foodCat = categories.firstOrNull { it.name == "Food & Dining" || it.name.lowercase().contains("food") }
-            if (foodCat != null) return foodCat.name
+        // Tolerate a user-renamed food category (e.g. "Food & Fun") by resolving the
+        // built-in guess against the categories that actually exist.
+        if (CategoryEngine.categorizeText(text) == "Food & Dining") {
+            return categories.firstOrNull {
+                it.name == "Food & Dining" || it.name.lowercase().contains("food")
+            }?.name
         }
 
-        return "Other"
+        // No confident guess — leave whatever the user already picked in place.
+        return null
     }
 
-    private fun boundDate(date: LocalDateTime): LocalDateTime {
-        val maxDate = LocalDateTime.now().plusDays(1)
-        val minDate = LocalDateTime.now().minusYears(2)
-        return when {
-            date.isAfter(maxDate) -> maxDate
-            date.isBefore(minDate) -> minDate
-            else -> date
-        }
-    }
+    private fun boundDate(date: LocalDateTime): LocalDateTime =
+        DateUtil.clampToAllowedRange(date)
 
-    private fun isReceiptDateInRange(date: LocalDateTime): Boolean {
-        val maxDate = LocalDateTime.now().plusDays(1)
-        val minDate = LocalDateTime.now().minusYears(2)
-        return !date.isAfter(maxDate) && !date.isBefore(minDate)
-    }
+    private fun isReceiptDateInRange(date: LocalDateTime): Boolean =
+        DateUtil.isWithinAllowedRange(date)
 
     fun saveTransaction(onSuccess: () -> Unit) {
         if (_uiState.value.isScanningReceipt) return

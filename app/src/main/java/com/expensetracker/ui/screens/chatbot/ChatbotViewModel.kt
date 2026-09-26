@@ -11,6 +11,7 @@ import com.expensetracker.data.repository.TransactionRepository
 import com.expensetracker.domain.chatbot.ChatbotIntent
 import com.expensetracker.domain.chatbot.IntentParser
 import com.expensetracker.domain.engine.BudgetEngine
+import com.expensetracker.domain.engine.CategoryEngine
 import com.expensetracker.services.insights.SpendingInsightsService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -166,13 +167,7 @@ class ChatbotViewModel(
 
             is ChatbotIntent.GetCategorySpending -> {
                 val queryCategory = intent.category.lowercase().replace(Regex("[?!.]"), "").trim()
-                val targetCategory = when {
-                    queryCategory.contains("food") || queryCategory.contains("dining") -> "Food & Dining"
-                    queryCategory.contains("travel") || queryCategory.contains("transport") -> "Travel"
-                    queryCategory.contains("shopping") -> "Shopping"
-                    queryCategory.contains("bill") || queryCategory.contains("utility") -> "Bills & Utilities"
-                    else -> intent.category.replaceFirstChar { it.uppercase() }
-                }
+                val targetCategory = resolveTargetCategory(intent.category)
 
                 val categoryExpenses = expenses.filter { 
                     it.category.equals(targetCategory, ignoreCase = true) ||
@@ -239,13 +234,7 @@ class ChatbotViewModel(
 
             is ChatbotIntent.GetCategoryTransactions -> {
                 val queryCategory = intent.category.lowercase().replace(Regex("[?!.,]"), "").trim()
-                val targetCategory = when {
-                    queryCategory.contains("food") || queryCategory.contains("dining") -> "Food & Dining"
-                    queryCategory.contains("travel") || queryCategory.contains("transport") -> "Travel"
-                    queryCategory.contains("shopping") -> "Shopping"
-                    queryCategory.contains("bill") || queryCategory.contains("utility") -> "Bills & Utilities"
-                    else -> intent.category.replaceFirstChar { it.uppercase() }
-                }
+                val targetCategory = resolveTargetCategory(intent.category)
                 val catTxs = expenses.filter {
                     it.category.equals(targetCategory, ignoreCase = true) ||
                     it.category.lowercase().contains(queryCategory) ||
@@ -280,13 +269,7 @@ class ChatbotViewModel(
 
             is ChatbotIntent.GetCategoryBudgetStatus -> {
                 val queryCategory = intent.category.lowercase().replace(Regex("[?!.,]"), "").trim()
-                val targetCategory = when {
-                    queryCategory.contains("food") || queryCategory.contains("dining") -> "Food & Dining"
-                    queryCategory.contains("travel") || queryCategory.contains("transport") -> "Travel"
-                    queryCategory.contains("shopping") -> "Shopping"
-                    queryCategory.contains("bill") || queryCategory.contains("utility") -> "Bills & Utilities"
-                    else -> intent.category.replaceFirstChar { it.uppercase() }
-                }
+                val targetCategory = resolveTargetCategory(intent.category)
                 val budgets = budgetRepository.getAllBudgets().first()
                 val budget = budgets.find { it.category.equals(targetCategory, ignoreCase = true) || it.category.contains(targetCategory, ignoreCase = true) }
                 if (budget == null) {
@@ -433,8 +416,8 @@ class ChatbotViewModel(
             is ChatbotIntent.CompareCategories -> {
                 val q1 = intent.category1.lowercase().replace(Regex("[?!.,]"), "").trim()
                 val q2 = intent.category2.lowercase().replace(Regex("[?!.,]"), "").trim()
-                val target1 = when { q1.contains("food") || q1.contains("dining") -> "Food & Dining"; q1.contains("travel") -> "Travel"; q1.contains("shopping") -> "Shopping"; q1.contains("bill") || q1.contains("utility") -> "Bills & Utilities"; else -> intent.category1 }
-                val target2 = when { q2.contains("food") || q2.contains("dining") -> "Food & Dining"; q2.contains("travel") -> "Travel"; q2.contains("shopping") -> "Shopping"; q2.contains("bill") || q2.contains("utility") -> "Bills & Utilities"; else -> intent.category2 }
+                val target1 = resolveTargetCategory(intent.category1)
+                val target2 = resolveTargetCategory(intent.category2)
                 val sum1 = expenses.filter { it.category.equals(target1, ignoreCase = true) || it.category.lowercase().contains(q1) }.sumOf { it.amount }
                 val sum2 = expenses.filter { it.category.equals(target2, ignoreCase = true) || it.category.lowercase().contains(q2) }.sumOf { it.amount }
                 val diff = sum1 - sum2
@@ -496,6 +479,13 @@ class ChatbotViewModel(
             }
         }
     }
+
+    /**
+     * Resolves the category phrase the intent parser produced into the canonical
+     * category name used in the database, so replies aggregate the right rows.
+     */
+    private fun resolveTargetCategory(rawCategory: String): String =
+        CategoryEngine.resolveCategoryName(rawCategory)
 
     class Factory(
         private val database: ExpenseDatabase,

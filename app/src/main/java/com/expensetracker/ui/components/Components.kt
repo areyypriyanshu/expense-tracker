@@ -42,7 +42,7 @@ fun TransactionItem(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .animateContentSize(animationSpec = MotionTokens.spring())
+            .animateContentSize(animationSpec = MotionTokens.gentle())
             .clip(RoundedCornerShape(8.dp))
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(
@@ -296,26 +296,33 @@ fun LoadingShimmer(
     modifier: Modifier = Modifier
 ) {
     val shimmerColors = listOf(
-        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
-        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.16f),
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
     )
     
     val transition = rememberInfiniteTransition(label = "shimmer")
     val translateAnim by transition.animateFloat(
         initialValue = 0f,
         targetValue = 1000f,
+        // A long, quiet sweep. A short bright one reads as a flicker, which is
+        // the opposite of settling — and a shimmer that keeps moving draws the
+        // eye away from the content replacing it.
         animationSpec = infiniteRepeatable(
-            animation = tween(1400, easing = LinearEasing),
+            animation = tween(2600, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "shimmerTranslate"
     )
+
+    // With platform animations off the sweep rests mid-tone instead of
+    // looping forever, so the skeleton still looks alive but never distracts.
+    val sweep = if (MotionTokens.animationsEnabled) translateAnim else 0f
     
     val brush = Brush.linearGradient(
         colors = shimmerColors,
-        start = androidx.compose.ui.geometry.Offset(translateAnim - 500f, 0f),
-        end = androidx.compose.ui.geometry.Offset(translateAnim, 0f)
+        start = androidx.compose.ui.geometry.Offset(sweep - 500f, 0f),
+        end = androidx.compose.ui.geometry.Offset(sweep, 0f)
     )
     
     Card(
@@ -410,7 +417,7 @@ fun AnimatedCounter(
 ) {
     val animatedValue by animateFloatAsState(
         targetValue = value.toFloat(),
-        animationSpec = MotionTokens.progressTween(durationMillis = 650),
+        animationSpec = MotionTokens.progressTween(),
         label = "counter"
     )
     
@@ -432,7 +439,7 @@ fun QuickStatCard(
     iconColor: Color
 ) {
     Card(
-        modifier = modifier.animateContentSize(animationSpec = MotionTokens.spring()),
+        modifier = modifier.animateContentSize(animationSpec = MotionTokens.gentle()),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),

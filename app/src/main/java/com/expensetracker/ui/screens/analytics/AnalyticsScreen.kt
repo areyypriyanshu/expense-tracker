@@ -3,14 +3,14 @@ package com.expensetracker.ui.screens.analytics
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import com.expensetracker.ui.components.ScrollAwareBlurScrim
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -77,33 +77,37 @@ fun AnalyticsScreen(
                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
         } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(bottom = 16.dp + bottomContentPadding)
-            ) {
-                item { PeriodSelector(uiState.selectedPeriod, viewModel::onPeriodChange) }
-                item { SpendingOverviewCard(uiState) }
-                if (uiState.dailySpending.isNotEmpty()) {
-                    item { SpendingChart(uiState.dailySpending, uiState.selectedPeriod, uiState.baseCurrency, Modifier.padding(16.dp)) }
-                }
-                if (uiState.categoryBreakdown.isNotEmpty()) {
-                    item { DonutChartSection(uiState.categoryBreakdown, uiState.totalSpend, uiState.baseCurrency) }
-                    item { SectionHeader(title = "By Category") }
-                    items(uiState.categoryBreakdown.toList()) { (category, amount) ->
-                        CategoryItem(
-                            category = category,
-                            amount = amount,
-                            total = uiState.totalSpend,
-                            currency = uiState.baseCurrency,
-                            transactions = uiState.categoryTransactions[category] ?: emptyList()
-                        )
+            val listState = rememberLazyListState()
+            ScrollAwareBlurScrim(listState = listState) {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize().padding(padding),
+                    contentPadding = PaddingValues(bottom = 16.dp + bottomContentPadding)
+                ) {
+                    item { PeriodSelector(uiState.selectedPeriod, viewModel::onPeriodChange) }
+                    item { SpendingOverviewCard(uiState) }
+                    if (uiState.dailySpending.isNotEmpty()) {
+                        item { SpendingChart(uiState.dailySpending, uiState.selectedPeriod, uiState.baseCurrency, Modifier.padding(16.dp)) }
+                    }
+                    if (uiState.categoryBreakdown.isNotEmpty()) {
+                        item { DonutChartSection(uiState.categoryBreakdown, uiState.totalSpend, uiState.baseCurrency) }
+                        item { SectionHeader(title = "By Category") }
+                        items(uiState.categoryBreakdown.toList()) { (category, amount) ->
+                            CategoryItem(
+                                category = category,
+                                amount = amount,
+                                total = uiState.totalSpend,
+                                currency = uiState.baseCurrency,
+                                transactions = uiState.categoryTransactions[category] ?: emptyList()
+                            )
+                        }
+                    }
+                    if (uiState.insights.isNotEmpty()) {
+                        item { SectionHeader(title = "Insights") }
+                        items(uiState.insights.take(3)) { insight -> AnalyticsInsightCard(insight) }
                     }
                 }
-                if (uiState.insights.isNotEmpty()) {
-                    item { SectionHeader(title = "Insights") }
-                    items(uiState.insights.take(3)) { insight -> AnalyticsInsightCard(insight) }
-                }
-            }
+            } // end ScrollAwareBlurScrim
         }
     }
 }
@@ -147,7 +151,7 @@ private fun SpendingOverviewCard(uiState: AnalyticsUiState) {
     }
     val animatedTotal by animateFloatAsState(
         targetValue = uiState.totalSpend.toFloat(),
-        animationSpec = MotionTokens.progressTween(durationMillis = 650), label = "total"
+        animationSpec = MotionTokens.progressTween(), label = "total"
     )
 
     Card(
@@ -278,7 +282,11 @@ private fun AnimatedBarChart(points: List<ChartPoint>, maxAmount: Double, averag
     }
     val animatedProgress by animateFloatAsState(
         targetValue = progressTarget,
-        animationSpec = MotionTokens.progressTween(durationMillis = 760),
+        // Held back so the bars start growing once the total above them has
+        // settled — two reveals racing each other is busy, not calm.
+        animationSpec = MotionTokens.progressTween(
+            delayMillis = MotionTokens.RevealStaggerMedium
+        ),
         label = "barAnim"
     )
 
@@ -339,7 +347,11 @@ private fun DonutChartSection(categoryBreakdown: Map<String, Double>, totalSpend
                     }
                     val animatedSweep by animateFloatAsState(
                         targetValue = sweepTarget,
-                        animationSpec = MotionTokens.progressTween(durationMillis = 860),
+                        // Last in the sequence: the donut is the summary of the
+                        // two things above it, so it draws the eye last.
+                        animationSpec = MotionTokens.progressTween(
+                            delayMillis = MotionTokens.RevealStaggerLarge
+                        ),
                         label = "donut"
                     )
                     val entries = categoryBreakdown.entries.toList()
@@ -432,12 +444,8 @@ private fun CategoryItem(category: String, amount: Double, total: Double, curren
 
             AnimatedVisibility(
                 visible = expanded,
-                enter = expandVertically(animationSpec = MotionTokens.enterTween()) +
-                    androidx.compose.animation.fadeIn(
-                        animationSpec = MotionTokens.enterTween(durationMillis = 180)
-                    ),
-                exit = shrinkVertically(animationSpec = MotionTokens.exitTween(durationMillis = 180)) +
-                    androidx.compose.animation.fadeOut(animationSpec = MotionTokens.exitTween())
+                enter = MotionTokens.expandWithFade(),
+                exit = MotionTokens.collapseWithFade()
             ) {
                 Column(
                     Modifier

@@ -92,7 +92,7 @@ fun StatCard(
     icon: ImageVector
 ) {
     Card(
-        modifier = modifier.animateContentSize(animationSpec = MotionTokens.spring()),
+        modifier = modifier.animateContentSize(animationSpec = MotionTokens.gentle()),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),

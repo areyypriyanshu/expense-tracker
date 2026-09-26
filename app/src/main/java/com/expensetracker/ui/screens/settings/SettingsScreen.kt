@@ -20,7 +20,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.expensetracker.services.currency.CurrencyService
-import com.expensetracker.ui.components.AppHeader
+import com.expensetracker.ui.components.ScrollAwareBlurScrim
 import com.expensetracker.ui.components.StyledAlertDialog
 import com.expensetracker.ui.theme.*
 
@@ -48,14 +48,15 @@ fun SettingsScreen(
             )
         }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(scrollState)
-                .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 16.dp + bottomContentPadding),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
+        ScrollAwareBlurScrim(scrollState = scrollState) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .verticalScroll(scrollState)
+                    .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 16.dp + bottomContentPadding),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
             SettingsSection(title = "General") {
                 SettingsItem(
                     icon = Icons.Default.CurrencyExchange,
@@ -107,6 +108,7 @@ fun SettingsScreen(
                 )
             }
 
+        }
         }
     }
 

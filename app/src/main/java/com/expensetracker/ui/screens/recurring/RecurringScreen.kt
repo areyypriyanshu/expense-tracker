@@ -322,7 +322,7 @@ private fun RecurringRuleCard(
     )
 
     Card(
-        modifier = Modifier.animateContentSize(animationSpec = MotionTokens.spring()),
+        modifier = Modifier.animateContentSize(animationSpec = MotionTokens.gentle()),
         colors = CardDefaults.cardColors(
             containerColor = containerColor
         ),

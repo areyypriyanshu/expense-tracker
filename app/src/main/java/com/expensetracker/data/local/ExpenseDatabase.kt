@@ -14,7 +14,7 @@ import java.time.LocalDateTime
 
 @Database(
     entities = [Transaction::class, Category::class, Budget::class, RecurringRule::class, CurrencyRate::class],
-    version = 3,
+    version = 4,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -41,6 +41,48 @@ abstract class ExpenseDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Drops the unused `convertedAmount` column from `transactions`.
+         *
+         * Uses the create-copy-drop-rename dance rather than `ALTER TABLE ... DROP COLUMN`:
+         * that statement only exists from SQLite 3.35 (Android 15 / API 35), and this app
+         * supports minSdk 26 (SQLite 3.18), where it would abort the migration. Rebuilding
+         * the table keeps every existing row and works on all supported API levels.
+         */
+        private val MIGRATION_3_TO_4 = object : Migration(3, 4) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `transactions_new` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `amount` REAL NOT NULL,
+                        `currency` TEXT NOT NULL,
+                        `category` TEXT NOT NULL,
+                        `note` TEXT NOT NULL,
+                        `date` TEXT NOT NULL,
+                        `isRecurring` INTEGER NOT NULL,
+                        `recurringRuleId` INTEGER,
+                        `isIncome` INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                database.execSQL(
+                    """
+                    INSERT INTO `transactions_new` (
+                        `id`, `amount`, `currency`, `category`, `note`,
+                        `date`, `isRecurring`, `recurringRuleId`, `isIncome`
+                    )
+                    SELECT
+                        `id`, `amount`, `currency`, `category`, `note`,
+                        `date`, `isRecurring`, `recurringRuleId`, `isIncome`
+                    FROM `transactions`
+                    """.trimIndent()
+                )
+                database.execSQL("DROP TABLE `transactions`")
+                database.execSQL("ALTER TABLE `transactions_new` RENAME TO `transactions`")
+            }
+        }
+
         fun getDatabase(context: Context): ExpenseDatabase {
             return INSTANCE ?: synchronized(this) {
                 Room.databaseBuilder(
@@ -48,7 +90,7 @@ abstract class ExpenseDatabase : RoomDatabase() {
                     ExpenseDatabase::class.java,
                     "expense_database"
                 )
-                    .addMigrations(MIGRATION_1_TO_2, MIGRATION_2_TO_3)
+                    .addMigrations(MIGRATION_1_TO_2, MIGRATION_2_TO_3, MIGRATION_3_TO_4)
                     .fallbackToDestructiveMigration()
                     .build()
                     .also { INSTANCE = it }
