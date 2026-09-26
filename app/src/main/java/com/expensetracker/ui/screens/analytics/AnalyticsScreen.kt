@@ -91,17 +91,13 @@ fun AnalyticsScreen(
             }
         } else {
             val listState = rememberLazyListState()
-            // Colours are handed out by rank, not by name, so the biggest
-            // spender always gets the first, strongest swatch and no two
-            // segments of the same chart can land on the same colour. A
-            // hash-based pick collides on any screen with more than a handful
-            // of categories, and a donut with two identical arcs is unreadable.
-            val categoryColors = remember(uiState.categoryBreakdown) {
-                uiState.categoryBreakdown.entries
-                    .sortedByDescending { it.value }
-                    .mapIndexed { rank, entry -> entry.key to CategoryColors[rank % CategoryColors.size] }
-                    .toMap()
-            }
+            // No colour map here on purpose. Every category takes its colour
+            // from getCategoryColor, the same call the dashboard, the
+            // transaction list and the category picker make — so a category
+            // cannot be blue in this donut and green two taps away. An earlier
+            // version ranked categories by size and coloured them by position,
+            // which is what made the same category change colour between
+            // screens and between periods.
             ScrollAwareBlurScrim(listState = listState) {
                 LazyColumn(
                     state = listState,
@@ -114,7 +110,7 @@ fun AnalyticsScreen(
                         item { SpendingChart(uiState.dailySpending, uiState.selectedPeriod, uiState.baseCurrency, Modifier.padding(16.dp)) }
                     }
                     if (uiState.categoryBreakdown.isNotEmpty()) {
-                        item { DonutChartSection(uiState.categoryBreakdown, uiState.totalSpend, uiState.baseCurrency, categoryColors) }
+                        item { DonutChartSection(uiState.categoryBreakdown, uiState.totalSpend, uiState.baseCurrency) }
                         item { SectionHeader(title = "By Category") }
                         items(uiState.categoryBreakdown.toList()) { (category, amount) ->
                             CategoryItem(
@@ -123,7 +119,7 @@ fun AnalyticsScreen(
                                 total = uiState.totalSpend,
                                 currency = uiState.baseCurrency,
                                 transactions = uiState.categoryTransactions[category] ?: emptyList(),
-                                color = categoryColors[category] ?: getCategoryColor(category)
+                                color = getCategoryColor(category)
                             )
                         }
                     }
@@ -638,16 +634,16 @@ private data class DonutSlice(val label: String, val amount: Double, val color: 
  *  into one grey "Other" slice rather than a fringe of hairlines. */
 private const val MAX_DONUT_SLICES = 6
 
-private val OTHER_SLICE_COLOR = CategoryColors.last()
+private val OTHER_SLICE_COLOR = AggregateCategoryColor
 
 /**
- * The slices the ring is made of, biggest first, colours handed out by rank.
+ * The slices the ring is made of, biggest first.
  *
  * The fold only happens once there is a genuine tail: with six or seven
  * categories every one of them still gets its own named slice, because
  * "Other (1)" tells the reader less than the category's own name would.
  */
-private fun buildDonutSlices(categoryBreakdown: Map<String, Double>, categoryColors: Map<String, Color>): List<DonutSlice> {
+private fun buildDonutSlices(categoryBreakdown: Map<String, Double>): List<DonutSlice> {
     val sorted = categoryBreakdown.entries.sortedByDescending { it.value }
     val named = if (sorted.size <= MAX_DONUT_SLICES + 1) {
         sorted
@@ -655,7 +651,7 @@ private fun buildDonutSlices(categoryBreakdown: Map<String, Double>, categoryCol
         sorted.take(MAX_DONUT_SLICES - 1)
     }
     val tail = sorted.drop(named.size)
-    return named.map { DonutSlice(it.key, it.value, categoryColors[it.key] ?: getCategoryColor(it.key)) } +
+    return named.map { DonutSlice(it.key, it.value, getCategoryColor(it.key)) } +
         if (tail.isEmpty()) emptyList()
         else listOf(DonutSlice("Other (${tail.size})", tail.sumOf { it.value }, OTHER_SLICE_COLOR))
 }
@@ -675,10 +671,9 @@ private fun formatCompact(amount: Double, currency: String): String {
 private fun DonutChartSection(
     categoryBreakdown: Map<String, Double>,
     totalSpend: Double,
-    currency: String,
-    categoryColors: Map<String, Color>
+    currency: String
 ) {
-    val slices = remember(categoryBreakdown, categoryColors) { buildDonutSlices(categoryBreakdown, categoryColors) }
+    val slices = remember(categoryBreakdown) { buildDonutSlices(categoryBreakdown) }
     var selectedLabel by remember(slices) { mutableStateOf<String?>(null) }
     val selected = slices.firstOrNull { it.label == selectedLabel }
     val sliceTotal = slices.sumOf { it.amount }.takeIf { it > 0 } ?: 1.0

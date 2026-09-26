@@ -60,7 +60,11 @@ fun BudgetsScreen(
             FloatingActionButton(
                 onClick = { viewModel.showAddDialog() },
                 modifier = Modifier.padding(bottom = bottomContentPadding),
-                containerColor = MaterialTheme.colorScheme.tertiary
+                containerColor = MaterialTheme.colorScheme.tertiary.copy(alpha = FabContainerAlpha),
+                // contentColorFor() resolves by exact colour equality, so the
+                // alpha above drops it out of the scheme and M3 would fall back
+                // to Color.LightGray — pin onTertiary explicitly instead.
+                contentColor = MaterialTheme.colorScheme.onTertiary
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Add Budget")
             }

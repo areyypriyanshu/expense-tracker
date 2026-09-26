@@ -76,7 +76,7 @@ fun TransactionsScreen(
             FloatingActionButton(
                 onClick = onAddTransaction,
                 modifier = Modifier.padding(bottom = bottomContentPadding),
-                containerColor = Primary,
+                containerColor = Primary.copy(alpha = FabContainerAlpha),
                 contentColor = Color(0xFFF6F3EA),
                 shape = CircleShape,
                 elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 3.dp)
