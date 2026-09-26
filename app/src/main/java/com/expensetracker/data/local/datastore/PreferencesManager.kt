@@ -67,6 +67,7 @@ class PreferencesManager(private val context: Context) {
         val BASE_CURRENCY = stringPreferencesKey("base_currency")
         val THEME = stringPreferencesKey("theme")
         val HAS_SEEN_UPI_PERMISSION_PROMPT = booleanPreferencesKey("has_seen_upi_permission_prompt")
+        val HAS_SEEN_NOTIFICATION_PERMISSION_PROMPT = booleanPreferencesKey("has_seen_notification_permission_prompt")
     }
 
     val userPreferences: Flow<UserPreference> = dataStore.data.map { prefs ->
@@ -81,6 +82,18 @@ class PreferencesManager(private val context: Context) {
 
     val hasSeenUpiPermissionPrompt: Flow<Boolean> = dataStore.data.map { prefs ->
         prefs[Keys.HAS_SEEN_UPI_PERMISSION_PROMPT] ?: false
+    }
+
+    /**
+     * Whether the notification prompt has ever been put in front of the user.
+     *
+     * This is recorded when the prompt is *shown*, not when it is answered, and
+     * it is deliberately one-way: Android stops displaying the system dialog
+     * after two denials, so re-asking would either do nothing or nag. The
+     * recovery path is the Settings row, not a repeat of this prompt.
+     */
+    val hasSeenNotificationPermissionPrompt: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[Keys.HAS_SEEN_NOTIFICATION_PERMISSION_PROMPT] ?: false
     }
 
     private fun getSystemDefaultCurrency(): String {
@@ -122,6 +135,12 @@ class PreferencesManager(private val context: Context) {
     suspend fun markUpiPermissionPromptSeen() {
         dataStore.edit { prefs ->
             prefs[Keys.HAS_SEEN_UPI_PERMISSION_PROMPT] = true
+        }
+    }
+
+    suspend fun markNotificationPermissionPromptSeen() {
+        dataStore.edit { prefs ->
+            prefs[Keys.HAS_SEEN_NOTIFICATION_PERMISSION_PROMPT] = true
         }
     }
 

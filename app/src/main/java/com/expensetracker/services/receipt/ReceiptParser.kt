@@ -107,7 +107,10 @@ object ReceiptParser {
         // Fallback: look for explicit currency-prefixed lines in the lower half of the receipt (e.g. "₹ 2809.02", "Rs 7053.43")
         val currencyLinePattern = Regex("(?i)^(?:[?₹]|\\?\\)|rs\\.?|inr)\\s*\\d")
         val currencyCandidates = lines.mapIndexedNotNull { index, line ->
-            if (currencyLinePattern.containsMatchIn(line.trim()) && index >= lines.size / 2) {
+            if (currencyLinePattern.containsMatchIn(line.trim()) &&
+                index >= lines.size / 2 &&
+                isPlausibleTotalLine(lines, index)
+            ) {
                 findAmounts(line).singleOrNull()?.value
             } else null
         }.distinct()
@@ -136,7 +139,10 @@ object ReceiptParser {
             matchesKeyword && !isExcluded
         }
         if (hasPosSignature && hasGrandTotalKeyword) {
-            val allAmounts = lines.flatMap { findAmounts(it) }.map { it.value }
+            val allAmounts = lines.indices
+                .filter { isPlausibleTotalLine(lines, it) }
+                .flatMap { findAmounts(lines[it]) }
+                .map { it.value }
             if (allAmounts.isNotEmpty()) {
                 return allAmounts.last().takeIf { it > 0.0 && it < MAX_AMOUNT }
             }
@@ -144,6 +150,24 @@ object ReceiptParser {
 
         return null
     }
+
+    /**
+     * A fallback may only claim an amount that could plausibly BE the grand total.
+     * The amount is rejected when its own line is an unrelated tax/item/discount line, or
+     * when the nearest preceding content line is one - that is how a bare "₹50" belonging to
+     * "Item 123" gets excluded without disturbing genuine trailing totals in column layouts,
+     * where the line above the total is just another number.
+     */
+    private fun isPlausibleTotalLine(lines: List<String>, index: Int): Boolean {
+        if (isUnrelatedTotalLine(lines[index])) return false
+        val previous = lines.subList(0, index).lastOrNull { !isSkipLine(it) } ?: return true
+        return !isUnrelatedTotalLine(previous)
+    }
+
+    private fun isUnrelatedTotalLine(line: String): Boolean =
+        unrelatedLinePattern.containsMatchIn(line) ||
+            looksLikeMerchantMetadata(line) ||
+            looksLikeAddressOrProduct(line)
 
     private fun isSkipLine(line: String): Boolean {
         // Line is considered "skip line" if it contains ONLY currency symbols, common punctuation, or whitespace

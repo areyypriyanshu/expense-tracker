@@ -6,6 +6,13 @@ build/
 .gradle/
 .kotlin/
 
+# Room's exported schema JSON is generated from the @Database version.
+# It is intentionally NOT ignored: schemas are the record of how the DB
+# evolved and are what migration tests are written against.
+# (If it ever starts appearing untracked, add:
+#   ksp { arg("room.schemaLocation", "$projectDir/schemas") } to app/build.gradle.kts
+#   and commit app/schemas/ deliberately, rather than ignoring the output.)
+
 # Packaged APKs / bundles produced by a local release build
 *.apk
 *.aab
@@ -41,6 +48,8 @@ local.properties
 *.pem
 secrets.properties
 signing.properties
+*.env
+.env.*
 
 # Captures and logs
 captures/
@@ -66,3 +75,11 @@ IndianReceiptDataset/
 
 # Temporary OCR debug script
 run_ocr.ps1
+
+# Local Room database copies exported for debugging
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm

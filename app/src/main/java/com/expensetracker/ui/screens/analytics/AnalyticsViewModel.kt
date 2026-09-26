@@ -13,6 +13,7 @@ import com.expensetracker.services.insights.SpendingInsightsService
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
+import java.time.temporal.ChronoUnit
 import java.time.temporal.TemporalAdjusters
 
 enum class SpendTrend { UP, DOWN, FLAT }
@@ -113,7 +114,10 @@ class AnalyticsViewModel(
                 }
 
                 val topEntry = categoryTotals.entries.maxByOrNull { it.value }
-                val daysInPeriod = java.time.Duration.between(startDate, endDate).toDays().coerceAtLeast(1)
+                // Counted the same way the chart counts its columns, so "Daily
+                // Avg" is the average of the bars above it rather than of some
+                // other span.
+                val daysInPeriod = elapsedDays(startDate, endDate)
 
                 val insights = insightsService.generateInsights(transactions)
 
@@ -147,13 +151,18 @@ class AnalyticsViewModel(
         _selectedPeriod.value = period
     }
 
+    /**
+     * The window the screen reports on, always starting at midnight and ending
+     * at the current moment.
+     *
+     * Weekly is exactly seven calendar days. It used to be "seven days ago at
+     * midnight until now", which straddles eight dates — the total at the top
+     * of the screen therefore included a day the chart had no column for.
+     */
     private fun getDateRange(period: ReportPeriod): Pair<LocalDateTime, LocalDateTime> {
         val now = LocalDateTime.now()
         return when (period) {
-            ReportPeriod.WEEKLY -> {
-                val start = now.minusDays(7).withHour(0).withMinute(0)
-                start to now
-            }
+            ReportPeriod.WEEKLY -> now.toLocalDate().minusDays(6).atStartOfDay() to now
             ReportPeriod.MONTHLY -> {
                 val start = now.with(TemporalAdjusters.firstDayOfMonth()).withHour(0).withMinute(0)
                 start to now
@@ -165,26 +174,29 @@ class AnalyticsViewModel(
         }
     }
 
+    /**
+     * The window the trend arrow compares against: the same number of days,
+     * ending the day before the current window starts.
+     *
+     * Comparing a whole previous month against three days of this one is what
+     * makes the trend chip read "-87%" on the 3rd of every month. Matching the
+     * lengths keeps the percentage a statement about the same amount of time.
+     */
     private fun getPreviousDateRange(period: ReportPeriod): Pair<LocalDateTime, LocalDateTime> {
         val now = LocalDateTime.now()
-        return when (period) {
-            ReportPeriod.WEEKLY -> {
-                val end = now.minusDays(7).withHour(0).withMinute(0)
-                val start = end.minusDays(7)
-                start to end
-            }
-            ReportPeriod.MONTHLY -> {
-                val startOfThisMonth = now.with(TemporalAdjusters.firstDayOfMonth()).withHour(0).withMinute(0)
-                val startOfLastMonth = startOfThisMonth.minusMonths(1)
-                startOfLastMonth to startOfThisMonth
-            }
-            ReportPeriod.YEARLY -> {
-                val startOfThisYear = now.with(TemporalAdjusters.firstDayOfYear()).withHour(0).withMinute(0)
-                val startOfLastYear = startOfThisYear.minusYears(1)
-                startOfLastYear to startOfThisYear
-            }
+        val (start, end) = getDateRange(period)
+        val days = elapsedDays(start, end)
+        val prevStart = when (period) {
+            ReportPeriod.WEEKLY -> start.minusDays(days.toLong())
+            ReportPeriod.MONTHLY -> start.minusMonths(1)
+            ReportPeriod.YEARLY -> start.minusYears(1)
         }
+        return prevStart to prevStart.plusDays((days - 1).toLong())
     }
+
+    /** Whole calendar days touched by the window, counting both ends. */
+    private fun elapsedDays(start: LocalDateTime, end: LocalDateTime): Int =
+        (ChronoUnit.DAYS.between(start.toLocalDate(), end.toLocalDate()) + 1).coerceAtLeast(1L).toInt()
 
     class Factory(private val database: ExpenseDatabase, private val preferencesManager: PreferencesManager) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")

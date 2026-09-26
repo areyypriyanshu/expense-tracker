@@ -1,6 +1,7 @@
 package com.expensetracker.services.receipt
 
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import java.io.File
 import java.time.LocalDate
@@ -32,7 +33,10 @@ class ReceiptDatasetEvaluationTest {
     @Test
     fun evaluateDataset() {
         val datasetDir = findDatasetDir()
-        assertTrue(
+        // IndianReceiptDataset/ is gitignored (see .gitignore) and is supplied out of band.
+        // Absent it, this harness is skipped rather than failed - nothing about parser
+        // quality can be measured without the records.
+        assumeTrue(
             "IndianReceiptDataset directory not found. Looked relative to: ${File(".").absolutePath}",
             datasetDir != null && datasetDir.exists()
         )

@@ -2,6 +2,8 @@ package com.expensetracker.ui.navigation
 
 import android.Manifest
 import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
@@ -58,6 +60,7 @@ import com.expensetracker.ui.screens.upisync.UpiSyncViewModel
 import com.expensetracker.ui.screens.settings.SettingsScreen
 import com.expensetracker.ui.screens.settings.SettingsViewModel
 import com.expensetracker.ui.screens.transaction.AddTransactionScreen
+import com.expensetracker.ui.permissions.NotificationPermission
 import com.expensetracker.ui.screens.transaction.AddTransactionViewModel
 import com.expensetracker.ui.screens.transaction.TransactionsScreen
 import com.expensetracker.ui.screens.transaction.TransactionsViewModel
@@ -118,19 +121,50 @@ fun ExpenseTrackerApp(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
     val coroutineScope = rememberCoroutineScope()
-    val hasSeenUpiPermissionPrompt by preferencesManager.hasSeenUpiPermissionPrompt.collectAsState(initial = false)
+
+    // Tri-state on purpose. Both flags come off disk, so on the very first frame
+    // the real value is not known yet — collecting with `initial = false` would
+    // briefly assert "never asked" and flash the onboarding dialog at every
+    // returning user before the true value landed. null means "still loading",
+    // and nothing is shown until it resolves either way.
+    val hasSeenUpiPermissionPrompt by preferencesManager.hasSeenUpiPermissionPrompt.collectAsState(initial = null)
+    val hasSeenNotificationPrompt by preferencesManager.hasSeenNotificationPermissionPrompt.collectAsState(initial = null)
+
     val hasSmsPermission = ContextCompat.checkSelfPermission(
         context,
         Manifest.permission.READ_SMS
     ) == PackageManager.PERMISSION_GRANTED
-    var showUpiPermissionPrompt by remember { mutableStateOf(false) }
+    var showUpiPermissionPrompt by remember {
+        mutableStateOf(false)
+    }
+
+    // POST_NOTIFICATIONS only exists as a runtime permission on Android 13+.
+    // Below that the app is already allowed to post, so there is nothing to ask
+    // for and no dialog is shown.
+    val needsNotificationPrompt = remember {
+        NotificationPermission.requiresRuntimeRequest() &&
+            !NotificationPermission.isPermissionGranted(context)
+    }
+    val showNotificationPrompt = hasSeenNotificationPrompt == false && needsNotificationPrompt
+
+    // Fired from the dialog's button rather than from an effect, so the request
+    // always originates from a tap on a resumed Activity. Launching a permission
+    // request during first composition is unreliable and the dialog gets dropped.
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { /* The prompt flag already gates this; the grant is re-read on demand. */ }
 
     val showBottomBar = Screen.bottomNavItems.any { screen ->
         currentDestination?.hierarchy?.any { it.route == screen.route } == true
     }
 
-    LaunchedEffect(hasSeenUpiPermissionPrompt, hasSmsPermission) {
-        showUpiPermissionPrompt = !hasSeenUpiPermissionPrompt && !hasSmsPermission
+    // The notification prompt claims the first launch; the UPI dialog waits for
+    // its turn rather than stacking on top of it. Once the notification prompt
+    // has been answered (or isn't needed) this flips to the original condition.
+    LaunchedEffect(hasSeenUpiPermissionPrompt, hasSeenNotificationPrompt, hasSmsPermission) {
+        showUpiPermissionPrompt = hasSeenUpiPermissionPrompt == false &&
+            !hasSmsPermission &&
+            !showNotificationPrompt
     }
 
     // Haze state — the source and blur consumer share this handle
@@ -198,6 +232,28 @@ fun ExpenseTrackerApp(
                 }
             )
         }
+    }
+
+    // Shown first on a fresh install. Explaining the ask matters here: a bare
+    // system permission dialog with no context is one of the most reliably
+    // declined things an app can do, and Play expects a rationale for anything
+    // that isn't the app's core function.
+    if (showNotificationPrompt) {
+        NotificationPermissionDialog(
+            onEnable = {
+                coroutineScope.launch {
+                    // Recorded on show, not on answer: the user is asked once,
+                    // and Settings is the way back if they change their mind.
+                    preferencesManager.markNotificationPermissionPromptSeen()
+                }
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            },
+            onDismiss = {
+                coroutineScope.launch {
+                    preferencesManager.markNotificationPermissionPromptSeen()
+                }
+            }
+        )
     }
 
     if (showUpiPermissionPrompt && currentDestination?.route != Screen.UpiSync.route) {
@@ -367,6 +423,50 @@ private fun FloatingGlassNavBar(
             }
         }
     }
+}
+
+/**
+ * First-run explanation for the notification permission.
+ *
+ * Says only what the app actually posts today. The budget and recurring alert
+ * channels are registered, but nothing triggers them yet, so promising those
+ * here would be a claim the app cannot keep — an alert the user agreed to and
+ * never receives is worse than no ask at all.
+ */
+@Composable
+private fun NotificationPermissionDialog(
+    onEnable: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                imageVector = Icons.Filled.NotificationsActive,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
+        },
+        title = {
+            Text("Turn on notifications?")
+        },
+        text = {
+            Text(
+                "We'll let you know when UPI transactions are synced in the background, so you don't have to open the app to check. You can change this any time in Settings."
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onEnable) {
+                Text("Turn On")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Not Now")
+            }
+        },
+        shape = MaterialTheme.shapes.medium
+    )
 }
 
 @Composable

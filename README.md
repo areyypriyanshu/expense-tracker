@@ -1,4 +1,4 @@
-# 🪙 Expense Tracker (v1.0.3)
+# 🪙 Expense Tracker (v1.0.4)
 
 A modern, minimalist, and intelligent expense-tracking application built for Android using Kotlin and Jetpack Compose. Designed with a focus on calm, scannable aesthetics and offline-first automation, the app streamlines expense management using smart features like SMS transaction syncing, budgets, recurring expenses, and analytics.
 
@@ -15,7 +15,10 @@ Automatically syncs transactions by parsing incoming transactional SMS messages 
 
 ### 2. 📊 Rich Charts & Analytics
 Understand your spending patterns through clean, scannable visualizations.
-* **Hand-drawn Charts:** The bar chart and category donut are drawn directly on a Compose `Canvas` (`AnimatedBarChart`, `DonutChartSection` in `AnalyticsScreen`) rather than through a charting library. This keeps the visuals on the same palette as the rest of the app and avoids a charting dependency.
+* **Hand-drawn Charts:** The bar chart and category donut are drawn directly on a Compose `Canvas` (`SpendingBarChart`, `DonutChartSection` in `AnalyticsScreen`) rather than through a charting library. This keeps the visuals on the same palette as the rest of the app and avoids a charting dependency.
+* **Honest axes:** The trend chart puts one column per day (or month) across the whole period, including days with no spending, and labels a value axis rounded to a readable step — so column height, position and the total at the top all mean the same thing.
+* **Tap to inspect:** Tapping a bar or a donut segment lifts its exact value into a callout or the ring's centre; tapping again clears it.
+* **Distinct category colours:** Swatches are assigned by rank, biggest category first, so no two segments of a chart can come out the same colour, and the donut's tail folds into one labelled "Other" slice rather than disappearing from the legend.
 * **Calm Reveals:** The total, then the bars, then the donut animate in sequence off shared `MotionTokens` so the screen resolves top-to-bottom instead of everything moving at once.
 * **Category Breakdown:** Aggregated spending charts that show where money goes over specified date ranges.
 
@@ -23,6 +26,8 @@ Understand your spending patterns through clean, scannable visualizations.
 Maintain budget control with non-intrusive notifications.
 * **Flexible Budgets:** Set spending limits for specific categories or overall monthly budgets.
 * **Smart Alerting:** Monitors spending and triggers alerts via `AlertService` when spending exceeds a custom threshold (default: 80%).
+* **Income is not spend:** Every spend total excludes income rows. `Transaction.amount` is a positive magnitude for *both* directions — direction lives in the `isIncome` flag — so summing an unfiltered list folds credits into spend and can read as a multiple of the real figure. `SpendSummaryCalculator` (`domain/engine/`) is the single place this is decided, and the Today / This Week / This Month cards, the Dashboard, and the budget cards all agree because they use the same rule.
+* **Nested windows, independent totals:** Today, This Week and This Month overlap by design — today counts toward all three — but each card is its own sum over its own window, never the sum of the others. Period boundaries start at midnight, so a transaction landing in the first seconds of a period is not dropped.
 
 ### 4. 🔄 Subscriptions & Recurring Outflows
 Keep track of periodic bills, utilities, and memberships.
@@ -87,6 +92,7 @@ app/src/main/java/com/expensetracker/
 ├── domain/
 │   ├── chatbot/        # Local natural-language intent parsing for the Finance Assistant
 │   ├── engine/         # Heuristic engines (CategoryEngine, BudgetEngine, ReportEngine)
+│   │                   #   + SpendSummaryCalculator (Today/Week/Month spend totals)
 │   ├── model/          # Shared domain UI-state models and monetary helpers
 │   └── util/           # Shared domain helpers (date handling)
 ├── services/
@@ -113,10 +119,14 @@ The Compose UI follows a unidirectional MVVM flow: screens observe `StateFlow` f
 
 To support its offline-automation capabilities, the app requests the following Android runtime permissions:
 * `android.permission.READ_SMS`: Required to parse UPI transactional SMS.
-* `android.permission.POST_NOTIFICATIONS`: Required for budget warnings and sync alerts on Android 13+ (API 33).
+* `android.permission.POST_NOTIFICATIONS`: Required to tell the user when UPI transactions have been synced. Only a runtime permission on Android 13+ (API 33); below that it is granted at install time.
 * `android.permission.CAMERA`: Required to scan receipts.
 
-On first launch, the app shows a one-time prompt that sends users to **UPI Auto-Sync** to grant SMS access. Users can skip it and return later from Settings.
+On first launch the app runs a short sequence of one-time prompts, each skippable:
+1. **Notifications** — an in-app rationale, then the system dialog.
+2. **UPI Auto-Sync** — sends the user to the setup screen to grant SMS access.
+
+The notification prompt is asked exactly once: the choice is recorded when the prompt is *shown*, not when it is answered, and it is never repeated on a later launch. If the user declines, the way back is Android's own **Settings → Apps → Expense Tracker → Notifications**, which is where the platform sends everyone who has exhausted the two-denial limit anyway.
 
 ---
 
@@ -145,7 +155,22 @@ From the project root, the same checks can be run from a terminal:
 ./gradlew test
 ```
 
-> **Known failures:** `./gradlew test` currently reports 2 failing tests out of 63 — `ReceiptParserTest.doesNotAssociateUnrelatedTaxOrItemLinesWithMultilineTotal` and `ReceiptDatasetEvaluationTest.evaluateDataset`. Both are pre-existing receipt-parsing issues and are unrelated to the UI.
+> **Test status:** `./gradlew test` runs 70 tests with 0 failures and 1 skipped.
+>
+> | Suite | Tests | Skipped |
+> | --- | --- | --- |
+> | `IntentParserTest` | 37 | — |
+> | `ReceiptParserTest` | 25 | — |
+> | `SpendSummaryCalculatorTest` | 7 | — |
+> | `ReceiptDatasetEvaluationTest` | 1 | 1 |
+>
+> The one skip is `ReceiptDatasetEvaluationTest.evaluateDataset`: it evaluates the
+> parser against `IndianReceiptDataset/` (100 labelled receipts), which is gitignored and
+> supplied out of band. Drop that directory next to `app/` and the harness runs for real,
+> reporting amount/merchant/currency/date accuracy against its thresholds.
+>
+> `SpendSummaryCalculatorTest` covers the summary-card totals and is the regression
+> net for the "income counted as spend" bug — reverting the `isIncome` filter fails it.
 
 ---
 

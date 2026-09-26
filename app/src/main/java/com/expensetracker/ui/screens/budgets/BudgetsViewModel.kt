@@ -12,10 +12,10 @@ import com.expensetracker.data.repository.CategoryRepository
 import com.expensetracker.data.repository.TransactionRepository
 import com.expensetracker.domain.engine.BudgetEngine
 import com.expensetracker.domain.engine.BudgetStatus
+import com.expensetracker.domain.engine.SpendSummaryCalculator
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
-import java.time.temporal.TemporalAdjusters
 
 data class BudgetsUiState(
     val budgetStatuses: List<BudgetStatus> = emptyList(),
@@ -47,9 +47,6 @@ class BudgetsViewModel(
     private fun loadBudgets() {
         viewModelScope.launch {
             val now = LocalDateTime.now()
-            val startOfMonth = now.with(TemporalAdjusters.firstDayOfMonth()).withHour(0).withMinute(0)
-            val startOfWeek = now.minusDays(now.dayOfWeek.value.toLong() - 1).withHour(0).withMinute(0)
-            val startOfToday = now.toLocalDate().atStartOfDay()
 
             combine(
                 budgetRepository.getAllBudgets(),
@@ -61,17 +58,19 @@ class BudgetsViewModel(
                     budgetEngine.getBudgetStatus(budget)
                 }
 
-                val monthlyTotal = transactions.filter { it.date >= startOfMonth }.sumOf { it.amount }
-                val weeklyTotal = transactions.filter { it.date >= startOfWeek }.sumOf { it.amount }
-                val todayTotal = transactions.filter { it.date >= startOfToday }.sumOf { it.amount }
+                // Spend totals live in SpendSummaryCalculator so the "income is not spend"
+                // and "independent windows" rules are defined once and unit-tested. Summing
+                // the raw list here would fold income into spend, since credits carry a
+                // positive `amount` just like expenses do.
+                val summary = SpendSummaryCalculator.calculate(transactions, now)
 
                 BudgetsUiState(
                     budgetStatuses = budgetStatuses,
                     categories = categories.map { it.name },
                     baseCurrency = preferences.baseCurrency,
-                    todaySpend = todayTotal,
-                    weeklySpend = weeklyTotal,
-                    monthlySpend = monthlyTotal,
+                    todaySpend = summary.todaySpend,
+                    weeklySpend = summary.weeklySpend,
+                    monthlySpend = summary.monthlySpend,
                     isLoading = false
                 )
             }.collect { state ->
