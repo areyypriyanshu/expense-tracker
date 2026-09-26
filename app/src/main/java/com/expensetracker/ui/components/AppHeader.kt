@@ -38,6 +38,7 @@ fun AppHeader(
         modifier = modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.background)
+            .statusBarsPadding()
             .padding(horizontal = 20.dp, vertical = 14.dp)
     ) {
         Column {

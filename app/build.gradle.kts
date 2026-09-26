@@ -13,8 +13,8 @@ android {
         applicationId = "com.expensetracker"
         minSdk = 26
         targetSdk = 34
-        versionCode = 2
-        versionName = "1.0.2"
+        versionCode = 3
+        versionName = "1.0.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -70,7 +70,10 @@ android {
 }
 
 dependencies {
-    val composeBom = platform("androidx.compose:compose-bom:2024.02.00")
+    // Bumped from 2024.02.00 (Compose 1.6.2) to 2024.10.00 (Compose 1.7.4):
+    // Haze requires Compose 1.7.3+. 1.7.x is the last line that builds
+    // against compileSdk 35, so no AGP/SDK bump is needed.
+    val composeBom = platform("androidx.compose:compose-bom:2024.10.00")
     implementation(composeBom)
 
     implementation("androidx.core:core-ktx:1.12.0")
@@ -99,6 +102,12 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0")
 
     implementation("com.patrykandpatrick.vico:compose-m3:1.14.0")
+
+    // Glassmorphism / frosted-glass nav bar.
+    // Haze 1.3.1 is the newest release that pairs with Compose 1.7.x / compileSdk 35;
+    // Haze 1.7.3+ and 2.x require compileSdk 37 and AGP 9.1+.
+    implementation("dev.chrisbanes.haze:haze:1.3.1")
+    implementation("dev.chrisbanes.haze:haze-materials:1.3.1")
 
     // Deliver the OCR model through Google Play services instead of bundling its native
     // libraries in the APK. This avoids 16 KB page-size-incompatible ML Kit binaries.

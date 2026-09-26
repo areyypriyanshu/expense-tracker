@@ -17,18 +17,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
-private object SecurityConstants {
-    private val EXCLUDED_CLASS_PREFIXES = listOf(
-        "java.lang.", "android.", "kotlin."
-    )
-    
-    fun isSensitiveClass(className: String): Boolean {
-        return !EXCLUDED_CLASS_PREFIXES.any { className.startsWith(it) }
-    }
-    
-    fun safeErrorMessage(): String = "An error occurred"
-}
-
 class ExpenseTrackerApp : Application() {
 
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)

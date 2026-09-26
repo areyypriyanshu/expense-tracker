@@ -40,20 +40,19 @@ fun RecurringScreen(
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        floatingActionButton = {
-            if (!uiState.isLoading) {
-                FloatingActionButton(onClick = { viewModel.showAddDialog() }) {
-                    Icon(Icons.Default.Add, contentDescription = "Add recurring")
-                }
-            }
-        },
         topBar = {
             TopAppBar(
-                windowInsets = WindowInsets(0, 0, 0, 0),
                 title = { Text("Recurring Expenses", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    if (!uiState.isLoading) {
+                        IconButton(onClick = { viewModel.showAddDialog() }) {
+                            Icon(Icons.Default.Add, contentDescription = "Add recurring")
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

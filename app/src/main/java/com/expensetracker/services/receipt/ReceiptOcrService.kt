@@ -22,10 +22,6 @@ class ReceiptOcrService(private val context: Context) {
             }
             val recognizedText = recognizer.process(image).awaitResult()
             val ocrText = recognizedText.text
-            val lines = ocrText.lines().size
-            val chars = ocrText.length
-            android.util.Log.d("RECEIPT_OCR_DEBUG", "Lines: $lines, Chars: $chars")
-            android.util.Log.d("RECEIPT_OCR_DEBUG", "Raw OCR text:\n$ocrText")
 
             if (ocrText.isBlank()) {
                 ReceiptOcrResult.NoText

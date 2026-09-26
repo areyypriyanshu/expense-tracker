@@ -438,7 +438,7 @@ class AddTransactionViewModel(
             try {
                 val transaction = Transaction(
                     id = state.id ?: 0,
-                    amount = amountValue!!,
+                    amount = amountValue ?: 0.0,
                     currency = state.currency,
                     category = state.category,
                     note = state.note,
@@ -455,7 +455,7 @@ class AddTransactionViewModel(
 
                 if (state.isRecurring && state.id == null) {
                     val recurringRule = RecurringRule(
-                        amount = amountValue!!,
+                        amount = amountValue ?: 0.0,
                         currency = state.currency,
                         category = state.category,
                         note = state.note,

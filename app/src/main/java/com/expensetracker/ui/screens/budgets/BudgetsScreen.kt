@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.expensetracker.data.model.Budget
@@ -35,6 +36,7 @@ import com.expensetracker.ui.theme.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BudgetsScreen(
+    bottomContentPadding: Dp = 0.dp,
     viewModel: BudgetsViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -59,6 +61,7 @@ fun BudgetsScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { viewModel.showAddDialog() },
+                modifier = Modifier.padding(bottom = bottomContentPadding),
                 containerColor = MaterialTheme.colorScheme.tertiary
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Add Budget")
@@ -86,7 +89,7 @@ fun BudgetsScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding),
-                contentPadding = PaddingValues(16.dp),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 16.dp + bottomContentPadding),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(uiState.budgetStatuses) { status ->

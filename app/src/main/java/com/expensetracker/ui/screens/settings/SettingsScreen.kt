@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.expensetracker.services.currency.CurrencyService
@@ -31,6 +32,7 @@ fun SettingsScreen(
     onNavigateToImport: () -> Unit,
     onNavigateToUpiSync: () -> Unit,
     onNavigateToChatbot: () -> Unit,
+    bottomContentPadding: Dp = 0.dp,
     viewModel: SettingsViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -51,7 +53,7 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(scrollState)
-                .padding(16.dp),
+                .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 16.dp + bottomContentPadding),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             SettingsSection(title = "General") {
@@ -100,7 +102,7 @@ fun SettingsScreen(
                 SettingsItem(
                     icon = Icons.Default.Info,
                     title = "About",
-                    subtitle = "Version 1.0.2",
+                    subtitle = "Version 1.0.3",
                     onClick = { showAboutDialog = true }
                 )
             }
@@ -270,6 +272,7 @@ private fun SettingsHeader(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.background)
+            .statusBarsPadding()
             .padding(horizontal = 20.dp, vertical = 12.dp)
     ) {
         Text(

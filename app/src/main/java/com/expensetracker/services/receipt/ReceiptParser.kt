@@ -133,11 +133,7 @@ object ReceiptParser {
         val hasGrandTotalKeyword = lines.any { line ->
             val matchesKeyword = Regex("(?i)\\b(?:bill\\s+total|grand\\s+total|net\\s+total|net\\s+amount|mrp\\s+total|invoice\\s+total|amount\\s+due|payable|final\\s+amount|total)\\b").containsMatchIn(line)
             val isExcluded = genericTotalExclusions.any { it.containsMatchIn(line) }
-            val isKeyword = matchesKeyword && !isExcluded
-            if (isKeyword) {
-                println("DEBUG: POS Fallback Keyword Matched: $line")
-            }
-            isKeyword
+            matchesKeyword && !isExcluded
         }
         if (hasPosSignature && hasGrandTotalKeyword) {
             val allAmounts = lines.flatMap { findAmounts(it) }.map { it.value }

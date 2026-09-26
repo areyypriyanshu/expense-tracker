@@ -3,19 +3,29 @@ package com.expensetracker.ui.navigation
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.compose.animation.*
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavBackStackEntry
@@ -51,6 +61,13 @@ import com.expensetracker.ui.screens.transaction.AddTransactionViewModel
 import com.expensetracker.ui.screens.transaction.TransactionsScreen
 import com.expensetracker.ui.screens.transaction.TransactionsViewModel
 import com.expensetracker.ui.theme.MotionTokens
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeStyle
+import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
+import dev.chrisbanes.haze.materials.HazeMaterials
 import kotlinx.coroutines.launch
 
 sealed class Screen(
@@ -80,6 +97,10 @@ sealed class Screen(
     }
 }
 
+// Floating pill: 64.dp tall + 12.dp gap below it, so scrollable content must
+// clear 64 + 12 dp to stay fully visible above the glass.
+private val NavBarHeight = 76.dp
+
 @Composable
 fun ExpenseTrackerApp(
     database: ExpenseDatabase,
@@ -105,80 +126,64 @@ fun ExpenseTrackerApp(
         showUpiPermissionPrompt = !hasSeenUpiPermissionPrompt && !hasSmsPermission
     }
 
-    Scaffold(
-        bottomBar = {
-            AnimatedVisibility(
-                visible = showBottomBar,
-                enter = slideInVertically(
-                    animationSpec = MotionTokens.enterTween(),
-                    initialOffsetY = { it / 2 }
-                ) + fadeIn(animationSpec = MotionTokens.enterTween(durationMillis = 180)),
-                exit = slideOutVertically(
-                    animationSpec = MotionTokens.exitTween(durationMillis = 180),
-                    targetOffsetY = { it / 2 }
-                ) + fadeOut(animationSpec = MotionTokens.exitTween())
-            ) {
-                NavigationBar(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 2.dp
-                ) {
-                    Screen.bottomNavItems.forEach { screen ->
-                        val selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
-                        val iconScale by animateFloatAsState(
-                            targetValue = if (selected) 1.08f else 1f,
-                            animationSpec = MotionTokens.spring(),
-                            label = "${screen.route}IconScale"
-                        )
-                        
-                        NavigationBarItem(
-                            icon = {
-                                Crossfade(
-                                    targetState = selected,
-                                    animationSpec = MotionTokens.fastTween(),
-                                    label = "${screen.route}Icon"
-                                ) { isSelected ->
-                                    Icon(
-                                        imageVector = if (isSelected) screen.selectedIcon else screen.unselectedIcon,
-                                        contentDescription = screen.title,
-                                        modifier = Modifier.scale(iconScale)
-                                    )
-                                }
-                            },
-                            label = {
-                                Text(
-                                    text = screen.title,
-                                    style = MaterialTheme.typography.labelSmall
-                                )
-                            },
-                            selected = selected,
-                            onClick = {
-                                navController.navigate(screen.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
-                                    }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = MaterialTheme.colorScheme.primary,
-                                selectedTextColor = MaterialTheme.colorScheme.primary,
-                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                indicatorColor = MaterialTheme.colorScheme.primaryContainer
-                            )
-                        )
+    // Haze state — the source and blur consumer share this handle
+    val hazeState = remember { HazeState() }
+
+    // Bottom system gesture inset so the glass bar sits above the gesture pill
+    val navBarsBottomDp = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+
+    // Total bottom content padding that scrollable screens need so their last
+    // item isn't hidden behind the glass bar.
+    val bottomContentPadding: Dp =
+        if (showBottomBar) NavBarHeight + navBarsBottomDp else 0.dp
+
+    // HazeMaterials.thin() is @Composable — call it directly in composition.
+    val isDark = isSystemInDarkTheme()
+    @OptIn(ExperimentalHazeMaterialsApi::class)
+    val hazeStyle = HazeMaterials.thin()
+
+    // Full-screen Box: content draws edge-to-edge; glass nav bar floats on top
+    Box(modifier = Modifier.fillMaxSize()) {
+
+        // ── Scrollable content layer (blur SOURCE) ────────────────────────
+        AppNavHost(
+            navController = navController,
+            database = database,
+            preferencesManager = preferencesManager,
+            context = context,
+            bottomContentPadding = bottomContentPadding,
+            modifier = Modifier
+                .fillMaxSize()
+                .hazeSource(hazeState)
+        )
+
+        // ── Floating glass navigation bar (blur CONSUMER) ────────────────
+        AnimatedVisibility(
+            visible = showBottomBar,
+            modifier = Modifier.align(Alignment.BottomCenter),
+            enter = slideInVertically(
+                animationSpec = MotionTokens.navbarEnter(),
+                initialOffsetY = { it / 2 }
+            ) + fadeIn(animationSpec = MotionTokens.navbarFade()),
+            exit = slideOutVertically(
+                animationSpec = MotionTokens.navbarExit(),
+                targetOffsetY = { it / 2 }
+            ) + fadeOut(animationSpec = MotionTokens.navbarFade())
+        ) {
+            FloatingGlassNavBar(
+                hazeState = hazeState,
+                hazeStyle = hazeStyle,
+                isDark = isDark,
+                currentDestination = currentDestination,
+                onNavigate = { route ->
+                    navController.navigate(route) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
                     }
                 }
-            }
-        }
-    ) { innerPadding ->
-        Box(modifier = Modifier.padding(innerPadding)) {
-            AppNavHost(
-                navController = navController,
-                database = database,
-                preferencesManager = preferencesManager,
-                context = context
             )
         }
     }
@@ -201,6 +206,143 @@ fun ExpenseTrackerApp(
                 }
             }
         )
+    }
+}
+
+/**
+ * Telegram-style floating navigation bar: a rounded, inset "pill" that hovers
+ * above the content with a frosted-glass (Haze) background, a soft drop shadow
+ * and a subtle hairline border, rather than a full-bleed NavigationBar.
+ */
+@Composable
+private fun FloatingGlassNavBar(
+    hazeState: HazeState,
+    hazeStyle: HazeStyle,
+    isDark: Boolean,
+    currentDestination: androidx.navigation.NavDestination?,
+    onNavigate: (String) -> Unit
+) {
+    val shape = RoundedCornerShape(28.dp)
+    val borderColor = if (isDark) {
+        Color.White.copy(alpha = 0.14f)
+    } else {
+        Color.Black.copy(alpha = 0.08f)
+    }
+
+    Surface(
+        modifier = Modifier
+            .padding(horizontal = 16.dp)
+            .navigationBarsPadding()
+            .padding(bottom = 12.dp)
+            .fillMaxWidth()
+            .shadow(
+                elevation = 12.dp,
+                shape = shape,
+                ambientColor = Color.Black.copy(alpha = 0.30f),
+                spotColor = Color.Black.copy(alpha = 0.30f)
+            )
+            .clip(shape)
+            .hazeEffect(
+                state = hazeState,
+                style = hazeStyle,
+            ) {
+                blurRadius = 20.dp
+                noiseFactor = 0.08f
+                if (!isDark) {
+                    tints = listOf(HazeTint(Color(0xFFFFFCF7).copy(alpha = 0.55f)))
+                }
+            }
+            .border(width = 1.dp, color = borderColor, shape = shape),
+        shape = shape,
+        color = Color.Transparent,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(64.dp)
+                .padding(horizontal = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Screen.bottomNavItems.forEach { screen ->
+                val selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
+
+                // Animate the indicator colour and size so the selection
+                // transitions smoothly instead of snapping between tabs.
+                val indicatorColor by animateColorAsState(
+                    targetValue = if (selected) {
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f)
+                    } else {
+                        Color.Transparent
+                    },
+                    animationSpec = MotionTokens.navSelection(),
+                    label = "${screen.route}Indicator"
+                )
+                val contentColor by animateColorAsState(
+                    targetValue = if (selected) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    animationSpec = MotionTokens.navSelection(),
+                    label = "${screen.route}Content"
+                )
+
+                val interactionSource = remember { MutableInteractionSource() }
+
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier
+                            // fillMaxWidth keeps every chip the same size, so the
+                            // indicator does not jump between short and long labels.
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(indicatorColor)
+                            .selectable(
+                                selected = selected,
+                                onClick = { onNavigate(screen.route) },
+                                role = Role.Tab,
+                                interactionSource = interactionSource,
+                                indication = null,
+                            )
+                            .padding(vertical = 6.dp, horizontal = 4.dp)
+                    ) {
+                        val iconScale by animateFloatAsState(
+                            targetValue = if (selected) 1.06f else 1f,
+                            animationSpec = MotionTokens.spring(),
+                            label = "${screen.route}IconScale"
+                        )
+                        Crossfade(
+                            targetState = selected,
+                            animationSpec = MotionTokens.navSelection(),
+                            label = "${screen.route}Icon"
+                        ) { isSelected ->
+                            Icon(
+                                imageVector = if (isSelected) screen.selectedIcon else screen.unselectedIcon,
+                                contentDescription = null,
+                                tint = contentColor,
+                                modifier = Modifier
+                                    .size(23.dp)
+                                    .scale(iconScale)
+                            )
+                        }
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = screen.title,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = contentColor,
+                            maxLines = 1
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -245,11 +387,14 @@ fun AppNavHost(
     navController: NavHostController,
     database: ExpenseDatabase,
     preferencesManager: PreferencesManager,
-    context: android.content.Context
+    context: android.content.Context,
+    bottomContentPadding: Dp = 0.dp,
+    modifier: Modifier = Modifier
 ) {
     NavHost(
         navController = navController,
         startDestination = Screen.Dashboard.route,
+        modifier = modifier,
         enterTransition = { appEnterTransition() },
         exitTransition = { appExitTransition() },
         popEnterTransition = { appPopEnterTransition() },
@@ -261,6 +406,7 @@ fun AppNavHost(
                 onViewAllTransactions = { navController.navigate(Screen.Transactions.route) },
                 onNavigateToAnalytics = { navController.navigate(Screen.Analytics.route) },
                 onNavigateToChatbot = { navController.navigate(Screen.Chatbot.route) },
+                bottomContentPadding = bottomContentPadding,
                 viewModel = androidx.lifecycle.viewmodel.compose.viewModel(
                     factory = DashboardViewModel.Factory(database, preferencesManager)
                 )
@@ -271,6 +417,7 @@ fun AppNavHost(
             TransactionsScreen(
                 onTransactionClick = { navController.navigate(Screen.AddTransaction.createRoute(it)) },
                 onAddTransaction = { navController.navigate(Screen.AddTransaction.createRoute()) },
+                bottomContentPadding = bottomContentPadding,
                 viewModel = androidx.lifecycle.viewmodel.compose.viewModel(
                     factory = TransactionsViewModel.Factory(database, preferencesManager)
                 )
@@ -279,6 +426,7 @@ fun AppNavHost(
 
         composable(Screen.Analytics.route) {
             AnalyticsScreen(
+                bottomContentPadding = bottomContentPadding,
                 viewModel = androidx.lifecycle.viewmodel.compose.viewModel(
                     factory = AnalyticsViewModel.Factory(database, preferencesManager)
                 )
@@ -287,6 +435,7 @@ fun AppNavHost(
 
         composable(Screen.Budgets.route) {
             BudgetsScreen(
+                bottomContentPadding = bottomContentPadding,
                 viewModel = androidx.lifecycle.viewmodel.compose.viewModel(
                     factory = BudgetsViewModel.Factory(database, preferencesManager)
                 )
@@ -300,6 +449,7 @@ fun AppNavHost(
                 onNavigateToImport = { navController.navigate(Screen.Import.route) },
                 onNavigateToUpiSync = { navController.navigate(Screen.UpiSync.route) },
                 onNavigateToChatbot = { navController.navigate(Screen.Chatbot.route) },
+                bottomContentPadding = bottomContentPadding,
                 viewModel = androidx.lifecycle.viewmodel.compose.viewModel(
                     factory = SettingsViewModel.Factory(preferencesManager)
                 )
@@ -399,29 +549,61 @@ private fun AnimatedContentTransitionScope<NavBackStackEntry>.popDirection():
 }
 
 private fun AnimatedContentTransitionScope<NavBackStackEntry>.appEnterTransition(): EnterTransition {
-    return slideIntoContainer(
-        towards = forwardDirection(),
-        animationSpec = MotionTokens.enterTween(durationMillis = 360)
-    ) + fadeIn(animationSpec = MotionTokens.enterTween(durationMillis = 220, delayMillis = 60))
+    val direction = forwardDirection()
+    return slideInHorizontally(
+        animationSpec = MotionTokens.pageEnter(),
+        initialOffsetX = { fullWidth ->
+            if (direction == AnimatedContentTransitionScope.SlideDirection.Start) fullWidth
+            else -fullWidth
+        }
+    ) + fadeIn(
+        animationSpec = MotionTokens.pageFade(),
+        initialAlpha = 0f
+    )
 }
 
 private fun AnimatedContentTransitionScope<NavBackStackEntry>.appExitTransition(): ExitTransition {
-    return slideOutOfContainer(
-        towards = forwardDirection(),
-        animationSpec = MotionTokens.exitTween(durationMillis = 240)
-    ) + fadeOut(animationSpec = MotionTokens.exitTween(durationMillis = 140))
+    val direction = forwardDirection()
+    return slideOutHorizontally(
+        animationSpec = MotionTokens.pageExit(),
+        // Parallax: the outgoing page only travels a fraction of the incoming
+        // page's distance, which reads as depth instead of a flat swap.
+        targetOffsetX = { fullWidth ->
+            val travel = (fullWidth * MotionTokens.PageParallax).toInt()
+            if (direction == AnimatedContentTransitionScope.SlideDirection.Start) -travel
+            else travel
+        }
+    ) + fadeOut(
+        animationSpec = MotionTokens.pageFade(),
+        targetAlpha = 0f
+    )
 }
 
 private fun AnimatedContentTransitionScope<NavBackStackEntry>.appPopEnterTransition(): EnterTransition {
-    return slideIntoContainer(
-        towards = popDirection(),
-        animationSpec = MotionTokens.enterTween(durationMillis = 340)
-    ) + fadeIn(animationSpec = MotionTokens.enterTween(durationMillis = 200, delayMillis = 50))
+    val direction = popDirection()
+    return slideInHorizontally(
+        animationSpec = MotionTokens.pageEnter(),
+        initialOffsetX = { fullWidth ->
+            if (direction == AnimatedContentTransitionScope.SlideDirection.Start) fullWidth
+            else -fullWidth
+        }
+    ) + fadeIn(
+        animationSpec = MotionTokens.pageFade(),
+        initialAlpha = 0f
+    )
 }
 
 private fun AnimatedContentTransitionScope<NavBackStackEntry>.appPopExitTransition(): ExitTransition {
-    return slideOutOfContainer(
-        towards = popDirection(),
-        animationSpec = MotionTokens.exitTween(durationMillis = 220)
-    ) + fadeOut(animationSpec = MotionTokens.exitTween(durationMillis = 140))
+    val direction = popDirection()
+    return slideOutHorizontally(
+        animationSpec = MotionTokens.pageExit(),
+        targetOffsetX = { fullWidth ->
+            val travel = (fullWidth * MotionTokens.PageParallax).toInt()
+            if (direction == AnimatedContentTransitionScope.SlideDirection.Start) -travel
+            else travel
+        }
+    ) + fadeOut(
+        animationSpec = MotionTokens.pageFade(),
+        targetAlpha = 0f
+    )
 }

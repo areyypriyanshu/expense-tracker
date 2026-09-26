@@ -74,7 +74,6 @@ fun ImportScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                windowInsets = WindowInsets(0, 0, 0, 0),
                 title = { Text("Import Transactions", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = {
@@ -105,7 +104,7 @@ fun ImportScreen(
 
             Crossfade(
                 targetState = importContentState,
-                animationSpec = MotionTokens.enterTween(durationMillis = 220),
+                animationSpec = MotionTokens.contentSwap(),
                 label = "importContent"
             ) { contentState ->
                 when (contentState) {

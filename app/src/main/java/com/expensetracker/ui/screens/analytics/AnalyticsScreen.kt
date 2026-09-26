@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.expensetracker.data.model.Transaction
 import com.expensetracker.domain.engine.ReportPeriod
@@ -49,7 +50,10 @@ import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AnalyticsScreen(viewModel: AnalyticsViewModel) {
+fun AnalyticsScreen(
+    bottomContentPadding: Dp = 0.dp,
+    viewModel: AnalyticsViewModel
+) {
     val uiState by viewModel.uiState.collectAsState()
 
     Scaffold(
@@ -75,7 +79,7 @@ fun AnalyticsScreen(viewModel: AnalyticsViewModel) {
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(bottom = 16.dp)
+                contentPadding = PaddingValues(bottom = 16.dp + bottomContentPadding)
             ) {
                 item { PeriodSelector(uiState.selectedPeriod, viewModel::onPeriodChange) }
                 item { SpendingOverviewCard(uiState) }

@@ -1,4 +1,4 @@
-# 🪙 Expense Tracker
+# 🪙 Expense Tracker (v1.0.3)
 
 A modern, minimalist, and intelligent expense-tracking application built for Android using Kotlin and Jetpack Compose. Designed with a focus on calm, scannable aesthetics and offline-first automation, the app streamlines expense management using smart features like SMS transaction syncing, budgets, recurring expenses, and analytics.
 
@@ -51,7 +51,7 @@ Ask plain-language questions about your finances without sending your data to a 
 
 ## 🎨 Design Philosophy (`UI-SPEC`)
 
-The user interface follows a specialized design contract outlined in [UI-SPEC.md](file:///Users/mandal/Documents/Expense%20Tracker%20%28AG%29/Expense%20Tracker/UI-SPEC.md):
+The user interface follows a specialized design contract outlined in [UI-SPEC.md](UI-SPEC.md):
 * **Palette:** Calm, warm off-white surfaces (`#FAFAF9`), deep green primary tones (`#1B4332`), muted secondary blue (`#2D6A4F`), soft gold accents, and restricted status colors.
 * **Shapes:** Clean, compact 8dp rounded corner cards for layouts, reserving circles strictly for icons and floating action buttons.
 * **Elevation & Density:** Uses subtle borders and tonal surface overlays instead of heavy drop shadows. High visual density organizes financial data efficiently and cleanly.
@@ -61,8 +61,8 @@ The user interface follows a specialized design contract outlined in [UI-SPEC.md
 
 ## 🛠️ Technology Stack
 
-* **Language:** Kotlin (2.0.0)
-* **UI Framework:** Jetpack Compose (Compose Compiler 2.0.0) with Material Design 3
+* **Language:** Kotlin (2.0.21)
+* **UI Framework:** Jetpack Compose with the Kotlin Compose compiler plugin (2.0.21) and Material Design 3
 * **Database:** Room (2.7.0) with Coroutines Flow for reactive updates
 * **Local Settings:** Jetpack DataStore Preferences (1.0.0)
 * **Background Processing:** Jetpack WorkManager (2.9.0)
@@ -109,6 +109,7 @@ The Compose UI follows a unidirectional MVVM flow: screens observe `StateFlow` f
 To support its offline-automation capabilities, the app requests the following Android runtime permissions:
 * `android.permission.READ_SMS`: Required to parse UPI transactional SMS.
 * `android.permission.POST_NOTIFICATIONS`: Required for budget warnings and sync alerts on Android 13+ (API 33).
+* `android.permission.CAMERA`: Required to scan receipts.
 
 On first launch, the app shows a one-time prompt that sends users to **UPI Auto-Sync** to grant SMS access. Users can skip it and return later from Settings.
 
@@ -119,7 +120,7 @@ On first launch, the app shows a one-time prompt that sends users to **UPI Auto-
 ### Prerequisites
 * **Android Studio:** Jellyfish | 2024.1.1 or newer.
 * **JDK:** Version 17.
-* **SDK:** Target SDK 34, Minimum SDK 26 (Android 8.0).
+* **SDK:** Compile SDK 35, target SDK 34, minimum SDK 26 (Android 8.0).
 
 ### Build & Run
 1. Clone this repository:
@@ -131,8 +132,15 @@ On first launch, the app shows a one-time prompt that sends users to **UPI Auto-
 4. Connect an Android device (or launch an emulator).
 5. Build and run the `:app` configuration.
 
+From the project root, the same checks can be run from a terminal:
+
+```bash
+./gradlew assembleDebug
+./gradlew test
+```
+
 ---
 
 ## 📄 License
 
-This project is licensed under the Apache License 2.0. See the `LICENSE` file for details.
+This repository does not currently include a license file.

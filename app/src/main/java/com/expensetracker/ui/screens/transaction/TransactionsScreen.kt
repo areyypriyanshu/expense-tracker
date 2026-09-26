@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.expensetracker.data.model.Transaction
 import com.expensetracker.services.currency.CurrencyService
@@ -32,6 +33,7 @@ import java.time.LocalTime
 fun TransactionsScreen(
     onTransactionClick: (Long) -> Unit,
     onAddTransaction: () -> Unit,
+    bottomContentPadding: Dp = 0.dp,
     viewModel: TransactionsViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -72,6 +74,7 @@ fun TransactionsScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = onAddTransaction,
+                modifier = Modifier.padding(bottom = bottomContentPadding),
                 containerColor = Primary,
                 contentColor = Color(0xFFF6F3EA),
                 shape = CircleShape,
@@ -106,7 +109,7 @@ fun TransactionsScreen(
 
             if (uiState.isLoading) {
                 LazyColumn(
-                    contentPadding = PaddingValues(20.dp),
+                    contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 20.dp + bottomContentPadding),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(5) {
@@ -137,7 +140,7 @@ fun TransactionsScreen(
                 }
             } else {
                 LazyColumn(
-                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+                    contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 8.dp + bottomContentPadding),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     items(
@@ -163,7 +166,7 @@ fun TransactionsScreen(
                 confirmButton = {
                     TextButton(
                         onClick = {
-                            viewModel.deleteTransaction(transactionToDelete!!)
+                            transactionToDelete?.let { viewModel.deleteTransaction(it) }
                             transactionToDelete = null
                         }
                     ) {
@@ -194,6 +197,7 @@ private fun TransactionsHeader(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.background)
+            .statusBarsPadding()
             .padding(horizontal = 20.dp, vertical = 14.dp)
     ) {
         Row(

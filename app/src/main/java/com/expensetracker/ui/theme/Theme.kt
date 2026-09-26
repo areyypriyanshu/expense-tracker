@@ -165,10 +165,14 @@ fun ExpenseTrackerTheme(
         SideEffect {
             val window = (view.context as? Activity)?.window ?: return@SideEffect
             val isDark = colorScheme.background == BackgroundDark
-            window.statusBarColor = colorScheme.surface.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !isDark
-            window.navigationBarColor = colorScheme.surface.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = !isDark
+            // Keep the system bars transparent so the frosted glass nav bar can
+            // blur the content (and the system gesture area) behind it.
+            window.statusBarColor = Color.Transparent.toArgb()
+            window.navigationBarColor = Color.Transparent.toArgb()
+            WindowCompat.getInsetsController(window, view).apply {
+                isAppearanceLightStatusBars = !isDark
+                isAppearanceLightNavigationBars = !isDark
+            }
         }
     }
 

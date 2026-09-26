@@ -2,6 +2,7 @@ package com.expensetracker.ui.screens.dashboard
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -19,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.expensetracker.domain.engine.BudgetStatus
 import com.expensetracker.services.currency.CurrencyService
@@ -35,6 +37,7 @@ fun DashboardScreen(
     onViewAllTransactions: () -> Unit,
     onNavigateToAnalytics: () -> Unit,
     onNavigateToChatbot: () -> Unit,
+    bottomContentPadding: Dp = 0.dp,
     viewModel: DashboardViewModel
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -47,6 +50,8 @@ fun DashboardScreen(
     }
 
     Scaffold(
+        // Zeroed so the header controls its own status-bar padding via
+        // statusBarsPadding() and content stays edge-to-edge behind the glass bar.
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             DashboardHeader(
@@ -62,6 +67,7 @@ fun DashboardScreen(
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = onAddTransaction,
+                modifier = Modifier.padding(bottom = bottomContentPadding),
                 containerColor = Primary,
                 contentColor = Color(0xFFF6F3EA),
                 shape = RoundedCornerShape(8.dp),
@@ -75,7 +81,7 @@ fun DashboardScreen(
     ) { padding ->
         Crossfade(
             targetState = uiState.isLoading,
-            animationSpec = MotionTokens.enterTween(durationMillis = 220),
+            animationSpec = MotionTokens.contentSwap(),
             label = "dashboardContent"
         ) { isLoading ->
             if (isLoading) {
@@ -90,7 +96,7 @@ fun DashboardScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(padding),
-                    contentPadding = PaddingValues(bottom = 16.dp)
+                    contentPadding = PaddingValues(bottom = 16.dp + bottomContentPadding)
                 ) {
                     item {
                         BalanceOverviewCard(
@@ -177,6 +183,7 @@ private fun DashboardHeader(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.background)
+            .statusBarsPadding()
             .padding(horizontal = 20.dp, vertical = 14.dp)
     ) {
         Row(
@@ -562,16 +569,20 @@ fun InsightsSection(
     insights: List<SpendingInsight>,
     modifier: Modifier = Modifier
 ) {
-    Column(
-        modifier = modifier.padding(horizontal = 20.dp)
-    ) {
+    // No horizontal padding here: SectionHeader supplies its own 20.dp, so
+    // padding the parent too would indent the title 40.dp past the cards.
+    Column(modifier = modifier) {
         SectionHeader(title = "AI Insights")
-        
+
         Spacer(modifier = Modifier.height(12.dp))
-        
-        insights.take(3).forEach { insight ->
-            InsightCard(insight = insight)
-            Spacer(modifier = Modifier.height(8.dp))
+
+        Column(
+            modifier = Modifier.padding(horizontal = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            insights.take(3).forEach { insight ->
+                InsightCard(insight = insight)
+            }
         }
     }
 }
@@ -599,8 +610,11 @@ fun InsightCard(insight: SpendingInsight) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = backgroundColor),
-        shape = RoundedCornerShape(8.dp),
-        border = CardDefaults.outlinedCardBorder()
+        shape = RoundedCornerShape(12.dp),
+        // A faint border in the severity's own accent colour. The default
+        // outlinedCardBorder() is a neutral outline that clashes with the
+        // tinted container; this keeps the edge crisp without fighting the fill.
+        border = BorderStroke(1.dp, accentColor.copy(alpha = 0.22f))
     ) {
         Row(
             modifier = Modifier

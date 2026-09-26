@@ -162,7 +162,6 @@ fun AddTransactionScreen(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
-                windowInsets = WindowInsets(0, 0, 0, 0),
                 title = {
                     Text(
                         text = if (isEditing) "Edit Expense" else "Quick Add",
@@ -299,7 +298,7 @@ fun AddTransactionScreen(
             }
 
             if (uiState.error != null) {
-                ErrorMessage(message = uiState.error!!)
+                ErrorMessage(message = uiState.error ?: "An unknown error occurred")
             }
 
             Spacer(modifier = Modifier.height(8.dp))
