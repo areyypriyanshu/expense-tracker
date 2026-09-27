@@ -121,6 +121,66 @@ fun FormDialog(
 }
 
 /**
+ * A dialog that only has something to say.
+ *
+ * The same shell as [FormDialog] with no fields and one quiet action, so About
+ * and anything else informational reads as part of the same family instead of
+ * arriving as a Material alert with its own proportions and a rule under the
+ * title. The action stays a text button because there is nothing to commit and
+ * nothing to weigh up: one way out, and it is also the way in.
+ */
+@Composable
+fun MessageDialog(
+    title: String,
+    message: String,
+    onDismiss: () -> Unit,
+    actionLabel: String = "Close"
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier.widthIn(max = 360.dp),
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 0.dp
+        ) {
+            Column(Modifier.fillMaxWidth()) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 14.dp)
+                )
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                    thickness = 0.5.dp
+                )
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 8.dp)
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 12.dp, end = 12.dp, bottom = 10.dp),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text(
+                            actionLabel,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
  * A small quiet label sitting above a form control.
  *
  * In place of Material's floating label, which animates up out of the box and

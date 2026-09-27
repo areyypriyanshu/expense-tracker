@@ -42,7 +42,19 @@ import java.time.format.DateTimeFormatter
 
 data class UpiSyncUiState(
     val uiState: UiState<List<SyncedTransaction>> = UiState.Loading,
+    /**
+     * Reading the SMS inbox. Set only by [UpiSyncViewModel.scanForTransactions].
+     *
+     * It was previously also set by an import, which is what made one boolean
+     * mean two things: the screen watches it to decide *whether to run a scan*,
+     * so importing set off a second scan of the last seven days mid-import, and
+     * that scan's result overwrote the user's selection with all rows. A scan
+     * and an import are different operations with different work to do, so they
+     * have different flags.
+     */
     val isScanning: Boolean = false,
+    /** Writing the selected rows to the database. Never starts a scan. */
+    val isImporting: Boolean = false,
     val hasPermission: Boolean = false,
     val importedCount: Int = 0,
     val selectedTransactions: Set<Int> = emptySet(),
@@ -98,6 +110,10 @@ class UpiSyncViewModel(
     }
     
     fun toggleTransaction(index: Int) {
+        // Mid-import the selection is the source of truth for what gets written,
+        // and it has already been read. Changing it under that read would leave
+        // the list and the write disagreeing.
+        if (_uiState.value.isImporting) return
         _uiState.update { state ->
             val newSelected = if (state.selectedTransactions.contains(index)) {
                 state.selectedTransactions - index
@@ -121,39 +137,59 @@ class UpiSyncViewModel(
     }
     
     fun importSelectedTransactions() {
-        val selectedIndices = _uiState.value.selectedTransactions.toList()
+        val selectedIndices = _uiState.value.selectedTransactions
         if (selectedIndices.isEmpty()) return
-        
+
         viewModelScope.launch {
-            _uiState.update { it.copy(isScanning = true) }
-            
+            // isImporting, not isScanning. isScanning is what the screen watches
+            // to decide whether to run a scan, so setting it here started a
+            // second scan of the same seven days while this one was writing —
+            // and that scan's result reset the selection to every row.
+            _uiState.update { it.copy(isImporting = true) }
+
             try {
                 val importedHashes = mutableSetOf<String>()
-                
+                val importedIndices = mutableSetOf<Int>()
+
                 selectedIndices.forEach { index ->
                     if (index < syncedTransactions.size) {
                         val synced = syncedTransactions[index]
                         transactionRepository.insertTransaction(synced.transaction)
+                        importedIndices += index
                         if (synced.messageHash.isNotEmpty()) {
                             importedHashes.add(synced.messageHash)
                         }
                     }
                 }
-                
+
                 upiSyncService.addImportedHashes(importedHashes)
                 upiSyncService.setLastSyncTime()
-                
+
+                // The imported rows leave the list, because they are transactions
+                // now. Leaving them in place is what made the Import button
+                // un-recoverable: the rows stayed selected, so the only way to
+                // get it back was to leave the screen, and re-selecting the same
+                // list and importing again would have written the same SMS
+                // twice. Removing them also keeps the button's "nothing selected"
+                // state honest rather than gating it on a separate flag.
+                val remaining = syncedTransactions.filterIndexed { index, _ ->
+                    index !in importedIndices
+                }
+                syncedTransactions = remaining
+
                 _uiState.update {
                     it.copy(
-                        isScanning = false,
-                        importedCount = selectedIndices.size,
+                        isImporting = false,
+                        importedCount = importedIndices.size,
+                        selectedTransactions = emptySet(),
+                        uiState = UiState.Success(remaining),
                         lastSyncTime = System.currentTimeMillis()
                     )
                 }
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(
-                        isScanning = false,
+                        isImporting = false,
                         error = "Failed to import transactions"
                     )
                 }
@@ -299,7 +335,8 @@ fun UpiSyncScreen(
                             selectedIndices = uiState.selectedTransactions,
                             onToggle = viewModel::toggleTransaction,
                             onImport = viewModel::importSelectedTransactions,
-                            importedCount = uiState.importedCount
+                            importedCount = uiState.importedCount,
+                            isImporting = uiState.isImporting
                         )
                     }
                 }
@@ -477,7 +514,8 @@ private fun SyncTransactionList(
     selectedIndices: Set<Int>,
     onToggle: (Int) -> Unit,
     onImport: () -> Unit,
-    importedCount: Int
+    importedCount: Int,
+    isImporting: Boolean
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
@@ -562,15 +600,37 @@ private fun SyncTransactionList(
                 
                 Button(
                     onClick = onImport,
-                    enabled = selectedIndices.isNotEmpty() && importedCount == 0,
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    // Gated on there being something selected, and on not
+                    // already writing. The old `importedCount == 0` term made
+                    // this permanently dead after one import, because the count
+                    // was only ever cleared by reset() — reachable solely from
+                    // the error path. Imported rows now leave the list, so
+                    // "nothing selected" is what disables this, and it means
+                    // the same thing as "nothing left to import".
+                    enabled = selectedIndices.isNotEmpty() && !isImporting,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant
+                    ),
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(Icons.Default.Download, contentDescription = null)
+                    if (isImporting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    } else {
+                        Icon(Icons.Default.Download, contentDescription = null)
+                    }
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = if (selectedIndices.isEmpty()) "Select transactions" else "Import ${selectedIndices.size} Transactions",
+                        text = when {
+                            isImporting -> "Importing…"
+                            selectedIndices.isEmpty() -> "Select transactions"
+                            else -> "Import ${selectedIndices.size} Transactions"
+                        },
                         fontWeight = FontWeight.SemiBold
                     )
                 }

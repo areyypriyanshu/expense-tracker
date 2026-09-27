@@ -83,24 +83,34 @@ class ExpenseTrackerApp : Application() {
     private suspend fun initializeDefaultData() {
         try {
             val categoryDao = database.categoryDao()
-            val categories = categoryDao.getAllCategories().first()
-            if (categories.isEmpty()) {
-                val defaultCategories = listOf(
-                    com.expensetracker.data.model.Category(name = "Food & Dining", icon = "restaurant", keywords = "restaurant,food,meal,lunch,dinner,breakfast,cafe,coffee,pizza,burger", isDefault = true),
-                    com.expensetracker.data.model.Category(name = "Transportation", icon = "directions_car", keywords = "uber,lyft,gas,fuel,parking,bus,train,metro,taxi", isDefault = true),
-                    com.expensetracker.data.model.Category(name = "Shopping", icon = "shopping_bag", keywords = "amazon,ebay,walmart,target,shop,store,mall,retail", isDefault = true),
-                    com.expensetracker.data.model.Category(name = "Entertainment", icon = "movie", keywords = "netflix,spotify,movie,game,concert,ticket,streaming", isDefault = true),
-                    com.expensetracker.data.model.Category(name = "Bills & Utilities", icon = "receipt", keywords = "electric,water,internet,phone,bill,utility,rent,insurance", isDefault = true),
-                    com.expensetracker.data.model.Category(name = "Healthcare", icon = "local_hospital", keywords = "doctor,pharmacy,medicine,hospital,clinic,health", isDefault = true),
-                    com.expensetracker.data.model.Category(name = "Education", icon = "school", keywords = "book,course,school,university,tution,online learning", isDefault = true),
-                    com.expensetracker.data.model.Category(name = "Personal Care", icon = "spa", keywords = "gym,beauty,spa,barber,haircut,cosmetic", isDefault = true),
-                    com.expensetracker.data.model.Category(name = "Travel", icon = "flight", keywords = "hotel,flight,airbnb,vacation,trip,travel", isDefault = true),
-                    com.expensetracker.data.model.Category(name = "Groceries", icon = "local_grocery_store", keywords = "grocery,supermarket,whole foods,trader joe", isDefault = true),
-                    com.expensetracker.data.model.Category(name = "Income", icon = "payments", keywords = "salary,freelance,income,payment,earning", isDefault = true),
-                    com.expensetracker.data.model.Category(name = "Other", icon = "more_horiz", keywords = "", isDefault = true)
-                )
-                categoryDao.insertCategories(defaultCategories)
-                Log.i(TAG, "Default categories initialized")
+            val defaultCategories = listOf(
+                com.expensetracker.data.model.Category(name = "Food & Dining", icon = "restaurant", keywords = "restaurant,food,meal,lunch,dinner,breakfast,cafe,coffee,pizza,burger", isDefault = true),
+                com.expensetracker.data.model.Category(name = "Transportation", icon = "directions_car", keywords = "uber,lyft,gas,fuel,parking,bus,train,metro,taxi", isDefault = true),
+                com.expensetracker.data.model.Category(name = "Shopping", icon = "shopping_bag", keywords = "amazon,ebay,walmart,target,shop,store,mall,retail", isDefault = true),
+                com.expensetracker.data.model.Category(name = "Entertainment", icon = "movie", keywords = "netflix,spotify,movie,game,concert,ticket,streaming", isDefault = true),
+                com.expensetracker.data.model.Category(name = "Bills & Utilities", icon = "receipt", keywords = "electric,water,internet,phone,bill,utility,rent,insurance", isDefault = true),
+                com.expensetracker.data.model.Category(name = "Healthcare", icon = "local_hospital", keywords = "doctor,pharmacy,medicine,hospital,clinic,health", isDefault = true),
+                com.expensetracker.data.model.Category(name = "Education", icon = "school", keywords = "book,course,school,university,tution,online learning", isDefault = true),
+                com.expensetracker.data.model.Category(name = "Personal Care", icon = "spa", keywords = "gym,beauty,spa,barber,haircut,cosmetic", isDefault = true),
+                com.expensetracker.data.model.Category(name = "Travel", icon = "flight", keywords = "hotel,flight,airbnb,vacation,trip,travel", isDefault = true),
+                com.expensetracker.data.model.Category(name = "Groceries", icon = "shopping_cart", keywords = "grocery,supermarket,whole foods,trader joe", isDefault = true),
+                com.expensetracker.data.model.Category(name = "Income", icon = "payments", keywords = "salary,freelance,income,payment,earning", isDefault = true),
+                com.expensetracker.data.model.Category(name = "Investment", icon = "trending_up", keywords = "investment,invest,stocks,mutual fund,sip,etf,bond,dividend,portfolio,returns", isDefault = true),
+                com.expensetracker.data.model.Category(name = "Other", icon = "more_horiz", keywords = "", isDefault = true)
+            )
+
+            // Seeded on an empty table, then topped up on every later launch.
+            // A plain `if (categories.isEmpty())` would mean a category added to
+            // this list only ever reached a fresh install: everyone who already
+            // had the app would keep the old set, and the new chip would exist
+            // in the code and nowhere else. Only names the user has not got are
+            // added — a category they renamed or deleted is left alone, because
+            // the check is on names that are absent, not on the default flag.
+            val existingNames = categoryDao.getAllCategories().first().map { it.name }.toSet()
+            val missing = defaultCategories.filterNot { it.name in existingNames }
+            if (missing.isNotEmpty()) {
+                categoryDao.insertCategories(missing)
+                Log.i(TAG, "Seeded ${missing.size} default categories: ${missing.joinToString { it.name }}")
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to initialize default data", e)

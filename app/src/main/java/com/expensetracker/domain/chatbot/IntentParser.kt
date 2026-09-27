@@ -21,6 +21,17 @@ sealed class ChatbotIntent {
     object GetSpendingSummary : ChatbotIntent()
     object GetAverageDailySpending : ChatbotIntent()
     object GetTotalIncome : ChatbotIntent()
+
+    /**
+     * What the user put into investments, and what that left of their income.
+     *
+     * Its own intent rather than a `GetCategorySpending("Investment")`, because
+     * the question people ask about investing is not "how much was that
+     * category" — it is "am I putting enough away". Answering that needs the
+     * income to measure against, which no category query looks at.
+     */
+    object GetInvestmentSummary : ChatbotIntent()
+
     object GetNetBalance : ChatbotIntent()
     object CompareMonths : ChatbotIntent()
     object CompareWeeks : ChatbotIntent()
@@ -54,6 +65,27 @@ class IntentParser {
             // Help
             cleanInput.matches(Regex(".*\\b(help|commands|what can you do|assist me|what do you do)\\b.*")) -> {
                 ChatbotIntent.Help
+            }
+
+            // Investment summary.
+            //
+            // First after Help, because every plausible phrasing of it is
+            // claimed by a later branch otherwise: "total investment" matches
+            // the total-spending rule on the word "total", "recent investments"
+            // matches the recent-transactions rule on "recent", and "show my
+            // investments" matches the show-transactions rule on "show". None of
+            // them is wrong about its own wording, so the one that knows the
+            // subject has to be asked first.
+            //
+            // Word boundaries, not substrings: "interest" is income, and
+            // "\\binvest\\b" is the only thing that keeps it out of here.
+            cleanInput.matches(
+                Regex(
+                    ".*\\b(invest|invests|invested|investing|investment|investments|" +
+                        "sip|sips|mutual\\s+fund|stock|stocks|portfolio)\\b.*"
+                )
+            ) -> {
+                ChatbotIntent.GetInvestmentSummary
             }
 
             // Lowest Expense
@@ -91,6 +123,34 @@ class IntentParser {
             cleanInput.matches(Regex(".*\\bhow is my budget\\b.*")) ||
             cleanInput.matches(Regex(".*\\bbudget\\b.*\\b(status|left|remaining)\\b.*")) -> {
                 ChatbotIntent.GetBudgetStatus
+            }
+
+            // Compare categories.
+            //
+            // Ahead of the category-spending rule below, which claims any
+            // sentence containing "food" or "shopping" and so took this one
+            // first: "compare Food and Shopping" was answered with what was
+            // spent on Food & Dining, and the example is in the help text. The
+            // rule below has no way to tell the two apart — both are "food" —
+            // so the one that carries the verb has to be asked first. It is
+            // still gated on "compare", so a plain "how much on food" is
+            // unaffected.
+            // Compare categories
+            cleanInput.contains("compare") && (cleanInput.contains("food") || cleanInput.contains("travel") || cleanInput.contains("shopping") || cleanInput.contains("bill")) -> {
+                val c1 = when {
+                    cleanInput.contains("food") -> "Food & Dining"
+                    cleanInput.contains("travel") -> "Travel"
+                    cleanInput.contains("shopping") -> "Shopping"
+                    cleanInput.contains("bill") -> "Bills & Utilities"
+                    else -> ""
+                }
+                val c2 = when {
+                    cleanInput.contains("food") && cleanInput.contains("travel") -> "Travel"
+                    cleanInput.contains("food") && cleanInput.contains("shopping") -> "Shopping"
+                    cleanInput.contains("travel") && cleanInput.contains("shopping") -> "Shopping"
+                    else -> if (c1.isNotBlank()) "Food & Dining" else ""
+                }
+                if (c1.isNotBlank() && c2.isNotBlank()) ChatbotIntent.CompareCategories(c1, c2) else ChatbotIntent.Unknown
             }
 
             // Category spending (more natural phrases)
@@ -145,24 +205,6 @@ class IntentParser {
             cleanInput.contains("more this month") || cleanInput.contains("more than last month") ||
             cleanInput.contains("compare month") || cleanInput.contains("spend more") -> {
                 ChatbotIntent.CompareMonths
-            }
-
-            // Compare categories
-            cleanInput.contains("compare") && (cleanInput.contains("food") || cleanInput.contains("travel") || cleanInput.contains("shopping") || cleanInput.contains("bill")) -> {
-                val c1 = when {
-                    cleanInput.contains("food") -> "Food & Dining"
-                    cleanInput.contains("travel") -> "Travel"
-                    cleanInput.contains("shopping") -> "Shopping"
-                    cleanInput.contains("bill") -> "Bills & Utilities"
-                    else -> ""
-                }
-                val c2 = when {
-                    cleanInput.contains("food") && cleanInput.contains("travel") -> "Travel"
-                    cleanInput.contains("food") && cleanInput.contains("shopping") -> "Shopping"
-                    cleanInput.contains("travel") && cleanInput.contains("shopping") -> "Shopping"
-                    else -> if (c1.isNotBlank()) "Food & Dining" else ""
-                }
-                if (c1.isNotBlank() && c2.isNotBlank()) ChatbotIntent.CompareCategories(c1, c2) else ChatbotIntent.Unknown
             }
 
             // Highest spending category

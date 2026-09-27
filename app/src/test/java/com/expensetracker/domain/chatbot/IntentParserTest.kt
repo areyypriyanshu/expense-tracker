@@ -244,4 +244,88 @@ class IntentParserTest {
         assertEquals(ChatbotIntent.Help, parser.parse("What can you do?"))
         assertEquals(ChatbotIntent.Help, parser.parse("commands"))
     }
+
+    // ── Investment ──────────────────────────────────────────────────────
+
+    /**
+     * The phrasings people actually use.
+     *
+     * Each of these is worth a line of its own because every one of them is
+     * claimed by a later rule if the investment rule is not asked first:
+     * "total investment" matches total-spending on "total", "recent
+     * investments" matches recent-transactions on "recent", "show my
+     * investments" matches show-transactions on "show", and "investments this
+     * month" matches monthly-spending on "month". Those rules are not wrong
+     * about their own wording — they are just about a different subject, and
+     * the one that knows the subject has to come first.
+     */
+    @Test
+    fun testParseInvestmentSummary() {
+        listOf(
+            "how much have i invested",
+            "what is my total investment",
+            "show my recent investments",
+            "investments this month",
+            "how much did I put into mutual fund",
+            "what about my SIP",
+            "tell me about my portfolio",
+            "how much is in stocks"
+        ).forEach { query ->
+            assertEquals(
+                "\"$query\" is an investment question",
+                ChatbotIntent.GetInvestmentSummary,
+                parser.parse(query)
+            )
+        }
+    }
+
+    /**
+     * "Interest" is interest on a balance — income, not an investment. The
+     * whole difference is the word boundary: "interest" contains the letters of
+     * "invest", and a substring match would silently answer a question about
+     * bank interest with a savings-rate report.
+     */
+    @Test
+    fun testInterestIsIncomeNotInvestment() {
+        assertNotEquals(ChatbotIntent.GetInvestmentSummary, parser.parse("how much interest did I earn"))
+        assertEquals(ChatbotIntent.GetTotalIncome, parser.parse("how much interest did I earn"))
+    }
+
+    /** The new rule must not have cost any existing intent its own phrasings. */
+    @Test
+    fun testInvestmentRuleDidNotStealExistingIntents() {
+        assertEquals(ChatbotIntent.GetTodaySpending, parser.parse("how much did I spend today"))
+        assertEquals(ChatbotIntent.GetTotalSpending, parser.parse("what is my total spending"))
+        assertEquals(ChatbotIntent.GetRecentTransactions(5), parser.parse("show recent transactions"))
+        assertEquals(ChatbotIntent.GetMonthlySpending(), parser.parse("how much did I spend this month"))
+        assertEquals(
+            ChatbotIntent.GetCategorySpending("Food & Dining"),
+            parser.parse("how much spent on food")
+        )
+    }
+
+    /**
+     * "Compare Food and Shopping" is an example in the help text, so it has to
+     * reach the branch that actually compares categories. The category-spending
+     * rule claims any sentence containing "food", and it used to be asked
+     * first, so this arrived as "what did you spend on Food & Dining".
+     */
+    @Test
+    fun testCompareTwoCategories() {
+        val intent = parser.parse("compare Food and Shopping")
+        assertEquals(ChatbotIntent.CompareCategories("Food & Dining", "Shopping"), intent)
+    }
+
+    /** Moving that rule up must not cost the plain category question. */
+    @Test
+    fun testPlainCategorySpendingStillResolves() {
+        assertEquals(
+            ChatbotIntent.GetCategorySpending("Food & Dining"),
+            parser.parse("how much did I spend on Food")
+        )
+        assertEquals(
+            ChatbotIntent.GetCategorySpending("Shopping"),
+            parser.parse("how much spent on shopping")
+        )
+    }
 }

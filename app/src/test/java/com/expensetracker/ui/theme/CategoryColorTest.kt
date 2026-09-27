@@ -19,7 +19,7 @@ class CategoryColorTest {
     private val builtInCategories = listOf(
         "Food & Dining", "Transportation", "Shopping", "Entertainment",
         "Bills & Utilities", "Healthcare", "Education", "Personal Care",
-        "Travel", "Groceries", "Income", "Other"
+        "Travel", "Groceries", "Income", "Investment", "Other"
     )
 
     @Test

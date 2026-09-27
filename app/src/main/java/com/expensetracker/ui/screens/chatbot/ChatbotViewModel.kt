@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.time.LocalDateTime
@@ -68,11 +69,27 @@ class ChatbotViewModel(
             val intent = intentParser.parse(query)
             val responseText = executeIntent(intent)
 
+            // Every answer here is computed locally, off a Room query and some
+            // arithmetic, so it is ready in tens of milliseconds. Delivered
+            // that fast it reads as the app flinching rather than as someone
+            // answering — the reply is there before the eye has finished
+            // travelling down to it. Held to a floor that grows a little with
+            // the length of the answer, and capped so a long one does not turn
+            // into a wait.
+            holdForTyping(responseText)
+
             val botMessage = ChatMessage(text = responseText, isUser = false)
             _uiState.update { state ->
                 state.copy(messages = state.messages + botMessage, isLoading = false)
             }
         }
+    }
+
+    private suspend fun holdForTyping(answer: String) {
+        val words = answer.split(' ', '\n').count { it.isNotBlank() }
+        val target = (TYPING_FLOOR_MILLIS + words * TYPING_MILLIS_PER_WORD)
+            .coerceAtMost(TYPING_CEILING_MILLIS)
+        delay(target)
     }
 
     private suspend fun executeIntent(intent: ChatbotIntent): String {
@@ -110,7 +127,8 @@ class ChatbotViewModel(
                     append("• \"Which category costs me the most?\"\n")
                     append("• \"Compare Food and Shopping\"\n")
                     append("• \"Where am I spending the most?\"\n")
-                    append("• \"Did I spend more than usual?\"")
+                    append("• \"Did I spend more than usual?\"\n")
+                    append("• \"How much have I invested?\"")
                 }
             }
 
@@ -296,6 +314,43 @@ class ChatbotViewModel(
                 "Your total recorded income is $currencySymbol %.2f".format(income)
             }
 
+            is ChatbotIntent.GetInvestmentSummary -> {
+                val investment = expenses.filter { it.category.equals(INVESTMENT_CATEGORY, ignoreCase = true) }
+                if (investment.isEmpty()) {
+                    "You haven't recorded anything under $INVESTMENT_CATEGORY yet. Add one from " +
+                        "Add Expense and it will show up here."
+                } else {
+                    val startOfYear = now.with(TemporalAdjusters.firstDayOfYear()).withHour(0).withMinute(0)
+                    val allTime = investment.sumOf { it.amount }
+                    val thisMonth = investment.filter { it.date >= startOfMonth }.sumOf { it.amount }
+                    val thisYear = investment.filter { it.date >= startOfYear }.sumOf { it.amount }
+                    val income = transactions
+                        .filter { it.isIncome && it.date >= startOfYear }
+                        .sumOf { it.amount }
+                    val entries = if (investment.size == 1) "entry" else "entries"
+
+                    buildString {
+                        append(
+                            "You have invested $currencySymbol %.2f in total, across %d $entries.\n"
+                                .format(allTime, investment.size)
+                        )
+                        append(
+                            "This month $currencySymbol %.2f, and $currencySymbol %.2f so far this year.\n"
+                                .format(thisMonth, thisYear)
+                        )
+                        if (income > 0) {
+                            val share = (thisYear / income * 100).toInt()
+                            append(
+                                "That is %d%% of the $currencySymbol %.2f of income you recorded this year, " +
+                                    "leaving the rest unallocated.".format(share, income)
+                            )
+                        } else {
+                            append("No income recorded this year, so there is nothing to measure that against.")
+                        }
+                    }
+                }
+            }
+
             is ChatbotIntent.GetNetBalance -> {
                 val totalIncome = transactions.filter { it.isIncome }.sumOf { it.amount }
                 val totalExpense = expenses.sumOf { it.amount }
@@ -402,17 +457,12 @@ class ChatbotViewModel(
                 "Last 30 days vs previous 30 days: Latest $currencySymbol %.2f | Previous $currencySymbol %.2f (diff $currencySymbol %.2f %s).".format(last30, prev30, kotlin.math.abs(diff), if (diff > 0) "more" else if (diff < 0) "less" else "same")
             }
 
-            is ChatbotIntent.CompareCategories -> {
-                val thisMonth = expenses.filter { it.date >= startOfMonth }.sumOf { it.amount }
-                val startOfLastMonth = now.minusMonths(1).with(TemporalAdjusters.firstDayOfMonth()).withHour(0).withMinute(0)
-                val endOfLastMonth = now.with(TemporalAdjusters.firstDayOfMonth()).minusDays(1).withHour(23).withMinute(59)
-                val lastMonth = expenses.filter { it.date >= startOfLastMonth && it.date <= endOfLastMonth }.sumOf { it.amount }
-                val diff = thisMonth - lastMonth
-                if (diff > 0) "You spent $currencySymbol %.2f more this month than last month.".format(diff)
-                else if (diff < 0) "You spent $currencySymbol %.2f less this month than last month.".format(-diff)
-                else "Your spending is the same this month as last month ($currencySymbol %.2f).".format(thisMonth)
-            }
-
+            // The second `CompareCategories` branch this used to sit above was a
+            // copy of the month-vs-month comparison that `CompareMonths` already
+            // handles, and it shadowed the real one — so "compare Food and
+            // Shopping" was answered with a sentence about this month against
+            // last month. `when` takes the first match, so the branch that
+            // never ran was the correct one.
             is ChatbotIntent.CompareCategories -> {
                 val q1 = intent.category1.lowercase().replace(Regex("[?!.,]"), "").trim()
                 val q2 = intent.category2.lowercase().replace(Regex("[?!.,]"), "").trim()
@@ -486,6 +536,16 @@ class ChatbotViewModel(
      */
     private fun resolveTargetCategory(rawCategory: String): String =
         CategoryEngine.resolveCategoryName(rawCategory)
+
+    private companion object {
+        /** Matches the seeded category name, so a rename is one edit. */
+        const val INVESTMENT_CATEGORY = "Investment"
+
+        /** Longest a reply is ever held back, however long the answer is. */
+        const val TYPING_CEILING_MILLIS = 1_800L
+        const val TYPING_FLOOR_MILLIS = 650L
+        const val TYPING_MILLIS_PER_WORD = 10L
+    }
 
     class Factory(
         private val database: ExpenseDatabase,

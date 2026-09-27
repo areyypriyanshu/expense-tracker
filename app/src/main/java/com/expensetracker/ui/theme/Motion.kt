@@ -42,6 +42,16 @@ object MotionTokens {
     const val DurationSlow = 520
 
     /**
+     * One full cycle of the assistant's typing indicator.
+     *
+     * The three dots share it, a third apart, so the pulse travels rather than
+     * the row blinking. It lives here for the same reason every other duration
+     * does: the number belongs to this file, not to the composable that happens
+     * to draw it.
+     */
+    const val TypingDotCycle = 1200
+
+    /**
      * Page-level navigation. Enter and exit share one duration so the outgoing
      * and incoming pages move in lockstep.
      */

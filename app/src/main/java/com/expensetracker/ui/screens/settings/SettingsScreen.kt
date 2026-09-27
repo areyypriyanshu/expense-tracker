@@ -19,8 +19,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.expensetracker.services.currency.CurrencyService
 import com.expensetracker.ui.components.CurrencyPickerDialog
+import com.expensetracker.ui.components.MessageDialog
 import com.expensetracker.BuildConfig
 import com.expensetracker.ui.components.CurrencyPickerDialog
+import com.expensetracker.ui.components.MessageDialog
 import com.expensetracker.ui.components.ScrollAwareBlurScrim
 import com.expensetracker.ui.components.StyledAlertDialog
 import com.expensetracker.ui.theme.*
@@ -126,24 +128,11 @@ fun SettingsScreen(
     }
 
     if (showAboutDialog) {
-        StyledAlertDialog(
-            onDismissRequest = { showAboutDialog = false },
-            title = { Text("Expense Tracker", fontWeight = FontWeight.SemiBold) },
-            text = {
-                Column {
-                    Text("Version ${BuildConfig.VERSION_NAME}")
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        "A clean, fast expense tracking app to help you manage your finances.",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showAboutDialog = false }) {
-                    Text("Close")
-                }
-            }
+        MessageDialog(
+            title = "Expense Tracker",
+            message = "Version ${BuildConfig.VERSION_NAME}\n\n" +
+                "A clean, fast expense tracking app to help you manage your finances.",
+            onDismiss = { showAboutDialog = false }
         )
     }
 }
@@ -220,7 +209,7 @@ private fun SettingsHeader(
     val greeting = when (java.time.LocalTime.now().hour) {
         in 5..11 -> "Good Morning"
         in 12..16 -> "Good Afternoon"
-        in 17..20 -> "Good Evening"
+        in 17..23 -> "Good Evening"
         else -> "Good Night"
     }
 

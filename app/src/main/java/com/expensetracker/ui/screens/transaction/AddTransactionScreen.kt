@@ -20,10 +20,13 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -238,6 +241,36 @@ fun AddTransactionScreen(
                 keyboardController = keyboardController
             )
 
+            // Directly under the amount, and not at the foot of the form. These
+            // are a way of *entering* an amount, so they belong beside the field
+            // they fill — and at the bottom of the form they were below the
+            // category grid on every phone short enough to scroll, which made a
+            // headline feature something you had to go looking for.
+            ReceiptActions(
+                isScanning = uiState.isScanningReceipt,
+                onScanReceipt = scanReceipt,
+                onChooseImage = {
+                    receiptPickerLauncher.launch(
+                        PickVisualMediaRequest(
+                            ActivityResultContracts.PickVisualMedia.ImageOnly
+                        )
+                    )
+                }
+            )
+
+            if (uiState.isScanningReceipt || uiState.receiptScanMessage != null) {
+                ReceiptStatus(
+                    isScanning = uiState.isScanningReceipt,
+                    message = uiState.receiptScanMessage,
+                    isError = uiState.receiptScanIsError,
+                    onDismissMessage = viewModel::clearReceiptScanMessage
+                )
+            }
+
+            if (uiState.receiptReviewPending) {
+                OcrReviewBanner(onReject = viewModel::rejectReceiptScan)
+            }
+
             TypeToggle(
                 isIncome = uiState.isIncome,
                 onToggle = viewModel::onIsIncomeChange
@@ -280,31 +313,8 @@ fun AddTransactionScreen(
                 onFrequencyChange = viewModel::onRecurringFrequencyChange
             )
 
-            ReceiptActions(
-                isScanning = uiState.isScanningReceipt,
-                onScanReceipt = scanReceipt,
-                onChooseImage = {
-                    receiptPickerLauncher.launch(
-                        PickVisualMediaRequest(
-                            ActivityResultContracts.PickVisualMedia.ImageOnly
-                        )
-                    )
-                }
-            )
-
-            if (uiState.isScanningReceipt || uiState.receiptScanMessage != null) {
-                ReceiptStatus(
-                    isScanning = uiState.isScanningReceipt,
-                    message = uiState.receiptScanMessage,
-                    isError = uiState.receiptScanIsError,
-                    onDismissMessage = viewModel::clearReceiptScanMessage
-                )
-            }
-
-            if (uiState.receiptReviewPending) {
-                OcrReviewBanner(onReject = viewModel::rejectReceiptScan)
-            }
-
+            // The last thing in the form, because it is raised by pressing the
+            // button pinned to the bottom of the screen.
             if (uiState.error != null) {
                 ErrorMessage(message = uiState.error ?: "An unknown error occurred")
             }
@@ -335,6 +345,19 @@ fun AddTransactionScreen(
         )
     }
 }
+
+/**
+ * The strip the Save bar has to clear at the bottom of the screen: the
+ * keyboard, or the navigation bar, whichever is taller.
+ *
+ * They overlap — the IME sits over the navigation bar — so padding by both
+ * would leave a nav-bar-sized gap under an open keyboard. `union` takes the
+ * larger of the two per side, which is the one number that is right in both
+ * states.
+ */
+@Composable
+private fun saveBarInsets(): WindowInsets =
+    WindowInsets.ime.union(WindowInsets.navigationBars)
 
 private fun createReceiptImageFile(context: android.content.Context): File {
     val directory = File(context.cacheDir, "receipts")
@@ -923,7 +946,19 @@ private fun SaveBar(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .navigationBarsPadding()
+            // Rides above the keyboard, and clears the navigation bar when it is
+            // closed. Whichever is taller — the two overlap, so summing them
+            // would leave a nav-bar-sized gap under an open keyboard.
+            //
+            // MainActivity calls enableEdgeToEdge(), which stops the window
+            // resizing for the keyboard even though the manifest still asks for
+            // adjustResize, so an app drawing edge to edge has to inset for the
+            // IME itself. This one did not: an open keyboard simply lay on top
+            // of the form, so the note being typed was underneath it and Save
+            // was unreachable. Because this is the Scaffold's bottomBar, the
+            // inset reaches the content too — the scroll area now ends above
+            // the keyboard, which is what lets the note be scrolled into view.
+            .windowInsetsPadding(saveBarInsets())
     ) {
         HairLineDivider()
         Button(

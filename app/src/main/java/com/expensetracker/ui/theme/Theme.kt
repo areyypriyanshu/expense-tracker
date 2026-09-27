@@ -60,6 +60,13 @@ val Warning = Color(0xFFC58A24)
  * palette keeps the character that was already shipped rather than being
  * replaced wholesale. Minimum pairwise ΔE goes from 14.5 to 26.2.
  * `CategoryColorTest` holds this line.
+ *
+ * Bronze was added later for Investment, and was picked the same way: measured
+ * against all twelve, its nearest neighbour is orange at ΔE 47.2, so it sits in
+ * no danger of being read as one of them. The palette's minimum is untouched —
+ * still that same amber/orange pair at 26.2. It is a warm earthy bronze
+ * because the vivid mid-lightness space is already spoken for, and anything
+ * brighter that cleared the bar landed on a teal only 30 away from cyan.
  */
 val CategoryColors = listOf(
     Color(0xFF3B82F6), // blue
@@ -73,6 +80,7 @@ val CategoryColors = listOf(
     Color(0xFFF97316), // orange
     Color(0xFF958BDA), // lavender — was indigo #6366F1
     Color(0xFF0D58A1), // navy     — was teal  #14B8A6
+    Color(0xFFA56D42), // bronze   — Investment
     Color(0xFF64748B)  // slate
 )
 
@@ -114,7 +122,8 @@ private val BUILT_IN_CATEGORY_COLORS: Map<String, Int> = mapOf(
     "travel" to 8,
     "groceries" to 9,
     "income" to 10,
-    "other" to 11
+    "investment" to 11,
+    "other" to 12
 )
 
 /**
@@ -145,7 +154,9 @@ fun getCategoryIcon(category: String): ImageVector {
         category.contains("Education", ignoreCase = true) -> Icons.Default.School
         category.contains("Personal", ignoreCase = true) -> Icons.Default.Spa
         category.contains("Travel", ignoreCase = true) -> Icons.Default.Flight
-        category.contains("Grocery", ignoreCase = true) -> Icons.Default.LocalGroceryStore
+        // A cart, not a storefront: the store glyph was too close to Shopping's
+        // bag to tell apart at chip size, and these two sit next to each other.
+        category.contains("Grocery", ignoreCase = true) -> Icons.Default.ShoppingCart
         category.contains("Income", ignoreCase = true) -> Icons.Default.Payments
         category.contains("Salary", ignoreCase = true) -> Icons.Default.AccountBalance
         category.contains("Investment", ignoreCase = true) -> Icons.AutoMirrored.Filled.TrendingUp

@@ -133,6 +133,10 @@ private fun AddRecurringDialog(
     var amountError by remember { mutableStateOf(false) }
     var picker by remember { mutableStateOf<RecurringPicker?>(null) }
 
+    // Not the Room list: a recurring bill is a different set of things from a
+    // day's spending — Rent and Subscriptions are here and are not spend
+    // categories. Investment is, because an SIP is money going out on a
+    // schedule.
     val categories = listOf(
         "Bills & Utilities",
         "Subscriptions",
@@ -141,6 +145,7 @@ private fun AddRecurringDialog(
         "Healthcare",
         "Education",
         "Personal Care",
+        "Investment",
         "Other"
     )
 
