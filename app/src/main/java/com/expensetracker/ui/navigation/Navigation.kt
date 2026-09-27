@@ -605,7 +605,7 @@ fun AppNavHost(
             ReportsScreen(
                 onNavigateBack = { navController.popBackStack() },
                 viewModel = androidx.lifecycle.viewmodel.compose.viewModel(
-                    factory = ReportsViewModel.Factory(database, context)
+                    factory = ReportsViewModel.Factory(database, context, preferencesManager)
                 )
             )
         }

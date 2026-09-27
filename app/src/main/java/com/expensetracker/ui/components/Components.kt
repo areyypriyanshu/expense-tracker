@@ -165,16 +165,26 @@ private fun formatTransactionDate(dateStr: String): String {
     }
 }
 
+/**
+ * A category filter chip.
+ *
+ * [icon] and [color] override what the category's name would otherwise decide.
+ * The Transactions list needs one chip that is not a category at all — the "All"
+ * row that clears the filter — and passing "All" through [getCategoryIcon] would
+ * hand it a three-dot menu glyph, which reads as "more", not "everything".
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CategoryChip(
     category: String,
     isSelected: Boolean,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    icon: ImageVector? = null,
+    color: Color? = null
 ) {
-    val categoryColor = getCategoryColor(category)
-    val icon = getCategoryIcon(category)
+    val categoryColor = color ?: getCategoryColor(category)
+    val chipIcon = icon ?: getCategoryIcon(category)
     
     val animatedColor by animateColorAsState(
         targetValue = if (isSelected) categoryColor.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant,
@@ -200,7 +210,7 @@ fun CategoryChip(
         },
         leadingIcon = {
             Icon(
-                imageVector = icon,
+                imageVector = chipIcon,
                 contentDescription = null,
                 modifier = Modifier.size(16.dp)
             )

@@ -13,14 +13,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.expensetracker.services.currency.CurrencyService
+import com.expensetracker.ui.components.CurrencyPickerDialog
+import com.expensetracker.BuildConfig
+import com.expensetracker.ui.components.CurrencyPickerDialog
 import com.expensetracker.ui.components.ScrollAwareBlurScrim
 import com.expensetracker.ui.components.StyledAlertDialog
 import com.expensetracker.ui.theme.*
@@ -104,7 +104,7 @@ fun SettingsScreen(
                 SettingsItem(
                     icon = Icons.Default.Info,
                     title = "About",
-                    subtitle = "Version 1.0.4",
+                    subtitle = "Version ${BuildConfig.VERSION_NAME}",
                     onClick = { showAboutDialog = true }
                 )
             }
@@ -114,13 +114,14 @@ fun SettingsScreen(
     }
 
     if (showCurrencyDialog) {
-        BaseCurrencyDialog(
+        CurrencyPickerDialog(
             selectedCode = uiState.baseCurrency,
             onSelect = { code ->
                 viewModel.updateBaseCurrency(code)
                 showCurrencyDialog = false
             },
-            onDismiss = { showCurrencyDialog = false }
+            onDismiss = { showCurrencyDialog = false },
+            title = "Base Currency"
         )
     }
 
@@ -130,7 +131,7 @@ fun SettingsScreen(
             title = { Text("Expense Tracker", fontWeight = FontWeight.SemiBold) },
             text = {
                 Column {
-                    Text("Version 1.0.4")
+                    Text("Version ${BuildConfig.VERSION_NAME}")
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         "A clean, fast expense tracking app to help you manage your finances.",
@@ -144,104 +145,6 @@ fun SettingsScreen(
                 }
             }
         )
-    }
-}
-
-/**
- * Base currency picker.
- *
- * A purpose-built dialog rather than an alert with a 15-row body. The old one
- * stacked a symbol, a code and a name on two lines each, which at fifteen
- * currencies overran the alert's body — the list was not scrollable, so the
- * bottom entries were simply unreachable — and its only button was a "Close"
- * that said nothing, since tapping a row already applied and dismissed.
- *
- * Now: one line per currency, a fixed-width check column so the names line up,
- * a bounded scrolling list, and no buttons at all.
- */
-@Composable
-private fun BaseCurrencyDialog(
-    selectedCode: String,
-    onSelect: (String) -> Unit,
-    onDismiss: () -> Unit
-) {
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 0.dp
-        ) {
-            Column(Modifier.fillMaxWidth()) {
-                Text(
-                    text = "Base Currency",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 14.dp)
-                )
-                HorizontalDivider(
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                    thickness = 0.5.dp
-                )
-                Column(
-                    Modifier
-                        // Capped so the dialog stays a dialog on a tall screen
-                        // instead of stretching to fifteen rows of it.
-                        .heightIn(max = 380.dp)
-                        .verticalScroll(rememberScrollState())
-                ) {
-                    CurrencyService.SUPPORTED_CURRENCIES.forEach { currency ->
-                        val isSelected = currency.code == selectedCode
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(
-                                    if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
-                                    else Color.Transparent
-                                )
-                                .clickable { onSelect(currency.code) }
-                                .padding(horizontal = 20.dp, vertical = 11.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = currency.symbol,
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.width(32.dp)
-                            )
-                            Text(
-                                text = currency.code,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium,
-                                modifier = Modifier.width(48.dp)
-                            )
-                            Text(
-                                text = currency.name,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f)
-                            )
-                            if (isSelected) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = "Selected",
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            } else {
-                                // Keeps every name starting at the same x, so
-                                // the column of names reads as a column.
-                                Spacer(Modifier.width(18.dp))
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
 }
 

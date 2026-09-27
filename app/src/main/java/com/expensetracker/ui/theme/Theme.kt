@@ -45,18 +45,6 @@ val Negative = Color(0xFFC75151)
 val Warning = Color(0xFFC58A24)
 
 /**
- * Opacity applied to every floating-action-button fill.
- *
- * The FABs sit in Scaffold's floatingActionButton slot, which overlays the
- * list rather than reserving space for it, so a solid fill hid whatever
- * scrolled underneath. 0.6 is the highest value that still clears 3:1
- * non-text contrast for the icon and label against the light surface
- * underneath, so the button stays readable while the content behind it
- * shows through.
- */
-const val FabContainerAlpha = 0.6f
-
-/**
  * The category palette.
  *
  * Ten of these are the original twelve. Two were replaced because the palette

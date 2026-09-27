@@ -352,7 +352,14 @@ class AddTransactionViewModel(
             }
             state.copy(
                 amount = result.totalAmount?.let { String.format(java.util.Locale.US, "%.2f", it) } ?: state.amount,
-                currency = result.currency ?: "INR",
+                // The scan fills the amount, not the currency. It used to apply
+                // whatever `findCurrency` made of the receipt text, which could
+                // land on USD or EUR from a stray "$" or "EUR" anywhere in the
+                // image — so the total that was just read in one currency could
+                // be filed under another without the user being asked. The form's
+                // own currency stands instead: INR for a new entry, or whatever
+                // the user had already chosen, until they change it themselves.
+                currency = state.currency,
                 category = suggestedCategory,
                 note = if (merchantNote.isNotBlank()) merchantNote else state.note,
                 date = result.date?.takeIf(::isReceiptDateInRange) ?: state.date,

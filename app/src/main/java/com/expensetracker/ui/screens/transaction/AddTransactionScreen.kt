@@ -6,13 +6,25 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -24,38 +36,48 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.SoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import com.expensetracker.data.model.Category
 import com.expensetracker.data.model.RecurringFrequency
 import com.expensetracker.services.currency.CurrencyService
-import com.expensetracker.ui.components.StyledAlertDialog
-import com.expensetracker.ui.theme.Accent
+import com.expensetracker.ui.components.CategoryChip
+import com.expensetracker.ui.components.CurrencyPickerDialog
 import com.expensetracker.ui.theme.MotionTokens
-import com.expensetracker.ui.theme.Positive
-import com.expensetracker.ui.theme.Negative
-import com.expensetracker.ui.theme.getCategoryColor
-import com.expensetracker.ui.theme.getCategoryIcon
+import java.io.File
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
-import java.io.File
 
+/**
+ * Add / edit expense.
+ *
+ * The form used to open on a greeting card, two full-width outlined receipt
+ * buttons and a five-chip amount row before the user had entered anything, and
+ * it buried a second copy of the date and currency pickers behind a
+ * "More options" expander at the bottom. Twelve categories went into a 4-wide
+ * grid of cards, each with a 44dp icon disc, so the picker alone was taller than
+ * the rest of the form, and the Save button sat at the end of a scroll.
+ *
+ * What it is now: one bordered row holding the amount and the currency it is
+ * denominated in, the three choices a new entry actually needs (type, amount,
+ * category) in that order, optional detail below, and Save pinned where the
+ * thumb already is. Everything else is either gone or a single quiet line.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTransactionScreen(
@@ -69,10 +91,9 @@ fun AddTransactionScreen(
     val context = LocalContext.current
     val focusRequester = remember { FocusRequester() }
     val scrollState = rememberScrollState()
-    
+
     var showDatePicker by remember { mutableStateOf(false) }
     var showCurrencyPicker by remember { mutableStateOf(false) }
-    var showMoreOptions by remember { mutableStateOf(false) }
     var pendingReceiptFile by remember { mutableStateOf<File?>(null) }
 
     val receiptCaptureLauncher = rememberLauncherForActivityResult(
@@ -89,23 +110,6 @@ fun AddTransactionScreen(
             viewModel.scanReceipt(uri, capturedFile)
         } else {
             capturedFile?.delete()
-        }
-    }
-
-    val launchCamera = {
-        try {
-            val file = createReceiptImageFile(context)
-            pendingReceiptFile = file
-            val uri = FileProvider.getUriForFile(
-                context,
-                "${context.packageName}.fileprovider",
-                file
-            )
-            receiptCaptureLauncher.launch(uri)
-        } catch (e: Exception) {
-            pendingReceiptFile?.delete()
-            pendingReceiptFile = null
-            viewModel.showReceiptScanError("Could not open the camera. Please choose an image instead.")
         }
     }
 
@@ -139,16 +143,32 @@ fun AddTransactionScreen(
     }
 
     val isEditing = transactionId != null && transactionId > 0
+    val hasAmount = uiState.amount.toDoubleOrNull()?.let { it > 0 } == true
+
+    val scanReceipt = {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+            try {
+                val file = createReceiptImageFile(context)
+                pendingReceiptFile = file
+                val uri = FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    file
+                )
+                receiptCaptureLauncher.launch(uri)
+            } catch (_: Exception) {
+                pendingReceiptFile?.delete()
+                pendingReceiptFile = null
+                viewModel.showReceiptScanError("Could not open the camera. Please choose an image instead.")
+            }
+        } else {
+            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+    }
 
     LaunchedEffect(Unit) {
         if (!isEditing) {
             focusRequester.requestFocus()
-        }
-    }
-
-    LaunchedEffect(uiState.receiptReviewPending) {
-        if (uiState.receiptReviewPending) {
-            showMoreOptions = true
         }
     }
 
@@ -160,22 +180,39 @@ fun AddTransactionScreen(
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = if (isEditing) "Edit Expense" else "Quick Add",
-                        fontWeight = FontWeight.SemiBold
+            Column {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = if (isEditing) "Edit Expense" else "Add Expense",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background
                     )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
                 )
+                HairLineDivider()
+            }
+        },
+        bottomBar = {
+            SaveBar(
+                isEditing = isEditing,
+                isLoading = uiState.isLoading,
+                isScanning = uiState.isScanningReceipt,
+                hasAmount = hasAmount,
+                onClick = {
+                    keyboardController?.hide()
+                    viewModel.saveTransaction(onSaveSuccess)
+                }
             )
         }
     ) { padding ->
@@ -184,72 +221,30 @@ fun AddTransactionScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(scrollState)
+                // The form grows when the recurring frequency picker or a scan
+                // result appears; a size tween keeps that from snapping.
                 .animateContentSize(animationSpec = MotionTokens.gentle())
                 .padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
             Spacer(modifier = Modifier.height(4.dp))
 
-            if (!isEditing) {
-                GreetingCard()
-            }
-
-            ReceiptScanActions(
-                isScanning = uiState.isScanningReceipt,
-                message = uiState.receiptScanMessage,
-                isError = uiState.receiptScanIsError,
-                onDismissMessage = viewModel::clearReceiptScanMessage,
-                onScanReceipt = {
-                    if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
-                        try {
-                            val file = createReceiptImageFile(context)
-                            pendingReceiptFile = file
-                            val uri = FileProvider.getUriForFile(
-                                context,
-                                "${context.packageName}.fileprovider",
-                                file
-                            )
-                            receiptCaptureLauncher.launch(uri)
-                        } catch (_: Exception) {
-                            pendingReceiptFile?.delete()
-                            pendingReceiptFile = null
-                            viewModel.showReceiptScanError("Could not open the camera. Please choose an image instead.")
-                        }
-                    } else {
-                        cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-                    }
-                },
-                onChooseImage = {
-                    receiptPickerLauncher.launch(
-                        PickVisualMediaRequest(
-                            ActivityResultContracts.PickVisualMedia.ImageOnly
-                        )
-                    )
-                }
-            )
-
-            if (uiState.receiptReviewPending) {
-                OcrReviewBanner(
-                    onReject = viewModel::rejectReceiptScan
-                )
-            }
-
-            AmountInput(
+            AmountField(
                 amount = uiState.amount,
                 currency = uiState.currency,
-                isEditing = isEditing,
                 onAmountChange = viewModel::onAmountChange,
+                onCurrencyClick = { showCurrencyPicker = true },
                 focusRequester = focusRequester,
                 keyboardController = keyboardController
             )
 
-            TransactionTypeToggle(
+            TypeToggle(
                 isIncome = uiState.isIncome,
                 onToggle = viewModel::onIsIncomeChange
             )
 
             if (!isEditing) {
-                QuickAmountRow(
+                QuickAmounts(
                     amounts = listOf(50, 100, 200, 500, 1000),
                     currency = uiState.currency,
                     onAmountSelected = { viewModel.onAmountChange(it.toString()) }
@@ -270,29 +265,44 @@ fun AddTransactionScreen(
                 }
             )
 
-            MoreOptionsToggle(
-                showMoreOptions = showMoreOptions,
-                onToggle = { showMoreOptions = !showMoreOptions }
+            NoteField(
+                note = uiState.note,
+                onNoteChange = viewModel::onNoteChange,
+                onAutoCategorize = viewModel::autoCategorize
             )
 
-            AnimatedVisibility(
-                visible = showMoreOptions,
-                enter = MotionTokens.expandWithFade(),
-                exit = MotionTokens.collapseWithFade()
-            ) {
-                MoreOptionsSection(
-                    note = uiState.note,
-                    onNoteChange = viewModel::onNoteChange,
-                    onAutoCategorize = viewModel::autoCategorize,
-                    date = uiState.date,
-                    onDateClick = { showDatePicker = true },
-                    currency = uiState.currency,
-                    onCurrencyClick = { showCurrencyPicker = true },
-                    isRecurring = uiState.isRecurring,
-                    onRecurringChange = viewModel::onRecurringChange,
-                    recurringFrequency = uiState.recurringFrequency,
-                    onFrequencyChange = viewModel::onRecurringFrequencyChange
+            DetailsSection(
+                date = uiState.date,
+                onDateClick = { showDatePicker = true },
+                isRecurring = uiState.isRecurring,
+                onRecurringChange = viewModel::onRecurringChange,
+                frequency = uiState.recurringFrequency,
+                onFrequencyChange = viewModel::onRecurringFrequencyChange
+            )
+
+            ReceiptActions(
+                isScanning = uiState.isScanningReceipt,
+                onScanReceipt = scanReceipt,
+                onChooseImage = {
+                    receiptPickerLauncher.launch(
+                        PickVisualMediaRequest(
+                            ActivityResultContracts.PickVisualMedia.ImageOnly
+                        )
+                    )
+                }
+            )
+
+            if (uiState.isScanningReceipt || uiState.receiptScanMessage != null) {
+                ReceiptStatus(
+                    isScanning = uiState.isScanningReceipt,
+                    message = uiState.receiptScanMessage,
+                    isError = uiState.receiptScanIsError,
+                    onDismissMessage = viewModel::clearReceiptScanMessage
                 )
+            }
+
+            if (uiState.receiptReviewPending) {
+                OcrReviewBanner(onReject = viewModel::rejectReceiptScan)
             }
 
             if (uiState.error != null) {
@@ -300,19 +310,6 @@ fun AddTransactionScreen(
             }
 
             Spacer(modifier = Modifier.height(8.dp))
-
-            SaveButton(
-                isEditing = isEditing,
-                isLoading = uiState.isLoading,
-                isScanning = uiState.isScanningReceipt,
-                hasAmount = uiState.amount.isNotEmpty() && uiState.amount.toDoubleOrNull() != null && uiState.amount.toDouble() > 0,
-                onClick = {
-                    keyboardController?.hide()
-                    viewModel.saveTransaction(onSaveSuccess)
-                }
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 
@@ -329,97 +326,13 @@ fun AddTransactionScreen(
 
     if (showCurrencyPicker) {
         CurrencyPickerDialog(
-            currentCurrency = uiState.currency,
-            onCurrencySelected = {
+            selectedCode = uiState.currency,
+            onSelect = {
                 viewModel.onCurrencyChange(it)
                 showCurrencyPicker = false
             },
             onDismiss = { showCurrencyPicker = false }
         )
-    }
-}
-
-@Composable
-private fun ReceiptScanActions(
-    isScanning: Boolean,
-    message: String?,
-    isError: Boolean,
-    onDismissMessage: () -> Unit,
-    onScanReceipt: () -> Unit,
-    onChooseImage: () -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            OutlinedButton(
-                onClick = onScanReceipt,
-                enabled = !isScanning,
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Icon(Icons.Default.DocumentScanner, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Scan Receipt")
-            }
-            OutlinedButton(
-                onClick = onChooseImage,
-                enabled = !isScanning,
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Icon(Icons.Default.Image, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Choose Image")
-            }
-        }
-
-        if (isScanning) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                Spacer(Modifier.width(10.dp))
-                Text(
-                    "Reading receipt…",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-
-        if (message != null) {
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = if (isError) {
-                        MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.55f)
-                    } else {
-                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
-                    }
-                ),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        if (isError) Icons.Default.Error else Icons.Default.Info,
-                        contentDescription = null,
-                        tint = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        message,
-                        modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    IconButton(onClick = onDismissMessage, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.Close, contentDescription = "Dismiss receipt message", modifier = Modifier.size(18.dp))
-                    }
-                }
-            }
-        }
     }
 }
 
@@ -431,597 +344,524 @@ private fun createReceiptImageFile(context: android.content.Context): File {
     return File.createTempFile("receipt_", ".jpg", directory)
 }
 
-@Composable
-private fun TransactionTypeToggle(
-    isIncome: Boolean,
-    onToggle: (Boolean) -> Unit
-) {
-    val expenseContainerColor by animateColorAsState(
-        targetValue = if (!isIncome) Negative.copy(alpha = 0.15f) else Color.Transparent,
-        animationSpec = MotionTokens.fastTween(),
-        label = "expenseContainer"
-    )
-    val incomeContainerColor by animateColorAsState(
-        targetValue = if (isIncome) Positive.copy(alpha = 0.15f) else Color.Transparent,
-        animationSpec = MotionTokens.fastTween(),
-        label = "incomeContainer"
-    )
-    val expenseContentColor by animateColorAsState(
-        targetValue = if (!isIncome) Negative else MaterialTheme.colorScheme.onSurfaceVariant,
-        animationSpec = MotionTokens.fastTween(),
-        label = "expenseContent"
-    )
-    val incomeContentColor by animateColorAsState(
-        targetValue = if (isIncome) Positive else MaterialTheme.colorScheme.onSurfaceVariant,
-        animationSpec = MotionTokens.fastTween(),
-        label = "incomeContent"
-    )
+// ─────────────────────────────────────────────────────────────────────────────
+// Form pieces
+// ─────────────────────────────────────────────────────────────────────────────
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        ),
-        shape = RoundedCornerShape(8.dp)
+/**
+ * The amount, and the currency it is counted in, as one control.
+ *
+ * They were previously three apart: the symbol was a prefix inside the amount
+ * field, and the currency that chose it sat in a second card under a collapsed
+ * section. Tapping a currency now happens where the currency is read.
+ */
+@Composable
+private fun AmountField(
+    amount: String,
+    currency: String,
+    onAmountChange: (String) -> Unit,
+    onCurrencyClick: () -> Unit,
+    focusRequester: FocusRequester,
+    keyboardController: SoftwareKeyboardController?,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(4.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                .height(64.dp)
+                .padding(start = 8.dp, end = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Card(
+            CurrencyButton(currency = currency, onClick = onCurrencyClick)
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            OutlinedTextField(
+                value = amount,
+                onValueChange = onAmountChange,
                 modifier = Modifier
                     .weight(1f)
-                    .clickable { onToggle(false) },
-                colors = CardDefaults.cardColors(
-                    containerColor = expenseContainerColor
-                ),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 12.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Default.ArrowDownward,
-                        contentDescription = null,
-                        tint = expenseContentColor,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(Modifier.width(8.dp))
+                    .focusRequester(focusRequester),
+                prefix = {
                     Text(
-                        text = "Expense",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = if (!isIncome) FontWeight.SemiBold else FontWeight.Normal,
-                        color = expenseContentColor
+                        text = CurrencyService.getSymbol(currency),
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                }
-            }
-
-            Card(
-                modifier = Modifier
-                    .weight(1f)
-                    .clickable { onToggle(true) },
-                colors = CardDefaults.cardColors(
-                    containerColor = incomeContainerColor
-                ),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 12.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Default.ArrowUpward,
-                        contentDescription = null,
-                        tint = incomeContentColor,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(Modifier.width(8.dp))
+                },
+                placeholder = {
                     Text(
-                        text = "Income",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = if (isIncome) FontWeight.SemiBold else FontWeight.Normal,
-                        color = incomeContentColor
+                        text = "0",
+                        style = MaterialTheme.typography.displaySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
                     )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun GreetingCard() {
-    val greeting = when (LocalTime.now().hour) {
-        in 5..11 -> "Good Morning"
-        in 12..16 -> "Good Afternoon"
-        in 17..20 -> "Good Evening"
-        else -> "Good Night"
-    }
-    
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        ),
-        shape = RoundedCornerShape(8.dp),
-        border = CardDefaults.outlinedCardBorder()
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp)
-        ) {
-            Text(
-                text = greeting,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Text(
-                text = "How much did you spend?",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Decimal,
+                    imeAction = ImeAction.Done
+                ),
+                keyboardActions = KeyboardActions(onDone = { keyboardController?.hide() }),
+                singleLine = true,
+                textStyle = MaterialTheme.typography.displaySmall.copy(
+                    fontWeight = FontWeight.SemiBold
+                ),
+                shape = RoundedCornerShape(10.dp),
+                // The row around it is the border. A second one, drawn by the
+                // field itself, is what made the old field look boxed-in.
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color.Transparent,
+                    unfocusedBorderColor = Color.Transparent,
+                    disabledBorderColor = Color.Transparent,
+                    errorBorderColor = Color.Transparent,
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    disabledContainerColor = Color.Transparent,
+                    errorContainerColor = Color.Transparent,
+                    cursorColor = MaterialTheme.colorScheme.primary
+                )
             )
         }
     }
 }
 
 @Composable
-private fun AmountInput(
-    amount: String,
+private fun CurrencyButton(
     currency: String,
-    isEditing: Boolean,
-    onAmountChange: (String) -> Unit,
-    focusRequester: FocusRequester,
-    keyboardController: SoftwareKeyboardController?
+    onClick: () -> Unit
 ) {
-    OutlinedTextField(
-        value = amount,
-        onValueChange = onAmountChange,
-        modifier = Modifier
-            .fillMaxWidth()
-            .focusRequester(focusRequester),
-        label = { Text("Amount") },
-        prefix = {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(10.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Text(
-                text = CurrencyService.getSymbol(currency),
-                style = MaterialTheme.typography.displaySmall,
-                fontWeight = FontWeight.Bold,
-                color = Accent
+                text = currency,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Medium
             )
-        },
-        placeholder = {
-            Text(
-                text = "0",
-                style = MaterialTheme.typography.displaySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+            Icon(
+                imageVector = Icons.Default.ExpandMore,
+                contentDescription = "Change currency",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp)
             )
-        },
-        keyboardOptions = KeyboardOptions(
-            keyboardType = KeyboardType.Decimal,
-            imeAction = ImeAction.Done
-        ),
-        keyboardActions = KeyboardActions(
-            onDone = { keyboardController?.hide() }
-        ),
-        singleLine = true,
-        textStyle = MaterialTheme.typography.displaySmall.copy(
-            fontWeight = FontWeight.Bold
-        ),
-        shape = RoundedCornerShape(8.dp),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = MaterialTheme.colorScheme.primary,
-            focusedLabelColor = Accent,
-            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-        )
-    )
+        }
+    }
 }
 
 @Composable
-private fun QuickAmountRow(
+private fun TypeToggle(
+    isIncome: Boolean,
+    onToggle: (Boolean) -> Unit
+) {
+    val colors = SegmentedButtonDefaults.colors(
+        activeContainerColor = MaterialTheme.colorScheme.primaryContainer,
+        activeContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        activeBorderColor = MaterialTheme.colorScheme.primary,
+        inactiveContainerColor = MaterialTheme.colorScheme.surface,
+        inactiveContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        inactiveBorderColor = MaterialTheme.colorScheme.outline
+    )
+
+    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+        SegmentedButton(
+            selected = !isIncome,
+            onClick = { onToggle(false) },
+            shape = SegmentedButtonDefaults.itemShape(
+                index = 0,
+                count = 2,
+                baseShape = RoundedCornerShape(12.dp)
+            ),
+            colors = colors,
+            // The check mark duplicates the filled segment, and the arrow
+            // already says which way the money moves.
+            icon = {},
+            label = { TypeLabel(text = "Expense", icon = Icons.Default.ArrowDownward) }
+        )
+        SegmentedButton(
+            selected = isIncome,
+            onClick = { onToggle(true) },
+            shape = SegmentedButtonDefaults.itemShape(
+                index = 1,
+                count = 2,
+                baseShape = RoundedCornerShape(12.dp)
+            ),
+            colors = colors,
+            icon = {},
+            label = { TypeLabel(text = "Income", icon = Icons.Default.ArrowUpward) }
+        )
+    }
+}
+
+@Composable
+private fun TypeLabel(text: String, icon: ImageVector) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(18.dp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Medium
+        )
+    }
+}
+
+@Composable
+private fun QuickAmounts(
     amounts: List<Int>,
     currency: String,
     onAmountSelected: (Int) -> Unit
 ) {
+    val symbol = CurrencyService.getSymbol(currency)
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            // Scrolls rather than squeezing five pills into the width, which
+            // truncated "₹1000" on a narrow phone.
+            .horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         amounts.forEach { amount ->
-            OutlinedCard(
-                onClick = { onAmountSelected(amount) },
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(8.dp),
-                colors = CardDefaults.outlinedCardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                ),
-                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
-            ) {
-                Text(
-                    text = "${CurrencyService.getSymbol(currency)}$amount",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 12.dp),
-                    textAlign = TextAlign.Center,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
+            SelectPill(
+                text = "$symbol$amount",
+                selected = false,
+                onClick = { onAmountSelected(amount) }
+            )
         }
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun CategorySection(
-    categories: List<com.expensetracker.data.model.Category>,
+    categories: List<Category>,
     selectedCategory: String,
     isEditing: Boolean,
     onCategorySelected: (String) -> Unit,
     onCategoryAndSave: (String) -> Unit
 ) {
-    Column {
-        Text(
-            text = "Category",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold
-        )
-        
-        Spacer(modifier = Modifier.height(12.dp))
-        
-        Column(
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            val rows = categories.chunked(4)
-            rows.forEach { rowCategories ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    rowCategories.forEach { category ->
-                        CategoryCard(
-                            modifier = Modifier.weight(1f),
-                            name = category.name,
-                            isSelected = selectedCategory == category.name,
-                            onClick = {
-                                if (!isEditing && categories.indexOf(category) == 0) {
-                                    onCategoryAndSave(category.name)
-                                } else {
-                                    onCategorySelected(category.name)
-                                }
-                            }
-                        )
-                    }
-                    repeat(4 - rowCategories.size) {
-                        Spacer(modifier = Modifier.weight(1f))
-                    }
-                }
-            }
-        }
-    }
-}
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        SectionLabel("Category")
 
-@Composable
-private fun CategoryCard(
-    modifier: Modifier = Modifier,
-    name: String,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    val color = getCategoryColor(name)
-    val containerColor by animateColorAsState(
-        targetValue = if (isSelected) color.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface,
-        animationSpec = MotionTokens.fastTween(),
-        label = "${name}CategoryContainer"
-    )
-    val iconBackgroundColor by animateColorAsState(
-        targetValue = if (isSelected) color else color.copy(alpha = 0.7f),
-        animationSpec = MotionTokens.fastTween(),
-        label = "${name}CategoryIcon"
-    )
-    val textColor by animateColorAsState(
-        targetValue = if (isSelected) color else MaterialTheme.colorScheme.onSurfaceVariant,
-        animationSpec = MotionTokens.fastTween(),
-        label = "${name}CategoryText"
-    )
-    val selectionScale by animateFloatAsState(
-        targetValue = if (isSelected) 1.03f else 1f,
-        animationSpec = MotionTokens.gentle(durationMillis = MotionTokens.DurationFast),
-        label = "${name}CategoryScale"
-    )
-
-    Card(
-        modifier = modifier
-            .scale(selectionScale)
-            .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(
-            containerColor = containerColor
-        ),
-        shape = RoundedCornerShape(8.dp),
-        border = if (isSelected) androidx.compose.foundation.BorderStroke(2.dp, color) else null
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 12.dp, horizontal = 8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+        // Chips, not a grid of cards. The grid gave every category a 44dp icon
+        // disc and a full card, so twelve of them filled more of the screen than
+        // the amount, the note and the Save button put together.
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(iconBackgroundColor),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = getCategoryIcon(name),
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(22.dp)
+            categories.forEach { category ->
+                CategoryChip(
+                    category = category.name,
+                    isSelected = selectedCategory == category.name,
+                    onClick = {
+                        if (!isEditing && categories.indexOf(category) == 0) {
+                            onCategoryAndSave(category.name)
+                        } else {
+                            onCategorySelected(category.name)
+                        }
+                    }
                 )
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = name,
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                color = textColor,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center
-            )
         }
     }
 }
 
+/**
+ * The note, which is also what drives the category guess.
+ *
+ * There used to be a sparkle button in the trailing icon that ran the guess on
+ * demand. It advertised itself as a second, better way to categorise when the
+ * guess had already been running silently on every keystroke past the fourth
+ * character — so the button did nothing the typing did not. The guess stays;
+ * the button goes.
+ */
 @Composable
-private fun MoreOptionsToggle(
-    showMoreOptions: Boolean,
-    onToggle: () -> Unit
-) {
-    val iconRotation by animateFloatAsState(
-        targetValue = if (showMoreOptions) 180f else 0f,
-        animationSpec = MotionTokens.fastTween(),
-        label = "moreOptionsRotation"
-    )
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .clickable(onClick = onToggle)
-            .padding(vertical = 8.dp),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            Icons.Default.ExpandMore,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.rotate(iconRotation)
-        )
-        Spacer(Modifier.width(8.dp))
-        Text(
-            text = if (showMoreOptions) "Less options" else "More options",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
-@Composable
-private fun MoreOptionsSection(
+private fun NoteField(
     note: String,
     onNoteChange: (String) -> Unit,
-    onAutoCategorize: () -> Unit,
+    onAutoCategorize: () -> Unit
+) {
+    OutlinedTextField(
+        value = note,
+        onValueChange = {
+            onNoteChange(it)
+            if (it.length > 3) onAutoCategorize()
+        },
+        modifier = Modifier.fillMaxWidth(),
+        placeholder = {
+            Text(
+                text = "Add a note",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
+        singleLine = true,
+        shape = RoundedCornerShape(12.dp),
+        textStyle = MaterialTheme.typography.bodyMedium,
+        colors = fieldColors()
+    )
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun DetailsSection(
     date: LocalDateTime,
     onDateClick: () -> Unit,
-    currency: String,
-    onCurrencyClick: () -> Unit,
     isRecurring: Boolean,
     onRecurringChange: (Boolean) -> Unit,
-    recurringFrequency: RecurringFrequency,
-    onFrequencyChange: (RecurringFrequency) -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        OutlinedTextField(
-            value = note,
-            onValueChange = {
-                onNoteChange(it)
-                if (it.length > 3) onAutoCategorize()
-            },
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text("Note") },
-            placeholder = { Text("Coffee, Uber, Groceries...") },
-            singleLine = true,
-            shape = RoundedCornerShape(8.dp),
-            leadingIcon = {
-                Icon(
-                    Icons.Default.Edit,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp)
-                )
-            },
-            trailingIcon = {
-                if (note.isNotEmpty()) {
-                    IconButton(onClick = onAutoCategorize) {
-                        Icon(
-                            Icons.Default.AutoAwesome,
-                            contentDescription = "Auto-categorize",
-                            tint = Accent
-                        )
-                    }
-                }
-            }
-        )
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            QuickOptionCard(
-                modifier = Modifier.weight(1f),
-                label = "Date",
-                value = if (date.toLocalDate() == LocalDate.now()) "Today" else date.format(DateTimeFormatter.ofPattern("dd MMM")),
-                icon = Icons.Default.CalendarToday,
-                onClick = onDateClick
-            )
-
-            QuickOptionCard(
-                modifier = Modifier.weight(1f),
-                label = "Currency",
-                value = currency,
-                icon = Icons.Default.CurrencyExchange,
-                onClick = onCurrencyClick
-            )
-        }
-
-        RecurringToggle(
-            isRecurring = isRecurring,
-            onToggle = onRecurringChange,
-            frequency = recurringFrequency,
-            onFrequencyChange = onFrequencyChange
-        )
-    }
-}
-
-@Composable
-private fun QuickOptionCard(
-    modifier: Modifier = Modifier,
-    label: String,
-    value: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = modifier.clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        ),
-        shape = RoundedCornerShape(8.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.width(10.dp))
-                Column {
-                    Text(
-                        text = label,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = value,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
-            Icon(
-                Icons.Default.ChevronRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun RecurringToggle(
-    isRecurring: Boolean,
-    onToggle: (Boolean) -> Unit,
     frequency: RecurringFrequency,
     onFrequencyChange: (RecurringFrequency) -> Unit
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        ),
-        shape = RoundedCornerShape(8.dp)
-    ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            Row(
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            DetailPill(
+                modifier = Modifier.weight(1f),
+                icon = Icons.Default.CalendarToday,
+                text = if (date.toLocalDate() == LocalDate.now()) {
+                    "Today"
+                } else {
+                    date.format(DateTimeFormatter.ofPattern("dd MMM"))
+                },
+                onClick = onDateClick
+            )
+            DetailPill(
+                modifier = Modifier.weight(1f),
+                icon = Icons.Default.Repeat,
+                text = if (isRecurring) "Recurring" else "One-time",
+                onClick = { onRecurringChange(!isRecurring) },
+                selected = isRecurring
+            )
+        }
+
+        if (isRecurring) {
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                RecurringFrequency.entries.forEach { entry ->
+                    SelectPill(
+                        text = entry.name.lowercase().replaceFirstChar { it.uppercase() },
+                        selected = entry == frequency,
+                        onClick = { onFrequencyChange(entry) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DetailPill(
+    icon: ImageVector,
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    selected: Boolean = false
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier,
+        shape = RoundedCornerShape(12.dp),
+        color = if (selected) {
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+        } else {
+            MaterialTheme.colorScheme.surface
+        },
+        border = BorderStroke(
+            width = 1.dp,
+            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 13.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+                tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+@Composable
+private fun SelectPill(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(18.dp),
+        color = if (selected) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+        }
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            color = if (selected) {
+                MaterialTheme.colorScheme.onPrimaryContainer
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            }
+        )
+    }
+}
+
+@Composable
+private fun ReceiptActions(
+    isScanning: Boolean,
+    onScanReceipt: () -> Unit,
+    onChooseImage: () -> Unit
+) {
+    // Two text buttons on one line. As outlined buttons they were a full-width
+    // band of chrome above the amount field, competing with the only field on
+    // this screen that the user has to fill in.
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        TextButton(onClick = onScanReceipt, enabled = !isScanning) {
+            Icon(
+                imageVector = Icons.Default.DocumentScanner,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(text = "Scan receipt", style = MaterialTheme.typography.labelLarge)
+        }
+        TextButton(onClick = onChooseImage, enabled = !isScanning) {
+            Icon(
+                imageVector = Icons.Default.Image,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(text = "Choose image", style = MaterialTheme.typography.labelLarge)
+        }
+    }
+}
+
+@Composable
+private fun ReceiptStatus(
+    isScanning: Boolean,
+    message: String?,
+    isError: Boolean,
+    onDismissMessage: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = if (isError) {
+            MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.55f)
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        }
+    ) {
+        Row(
+            modifier = Modifier.padding(start = 12.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(modifier = Modifier.size(18.dp), contentAlignment = Alignment.Center) {
+                if (isScanning) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                } else {
                     Icon(
-                        Icons.Default.Repeat,
+                        imageVector = if (isError) Icons.Default.Error else Icons.Default.Info,
                         contentDescription = null,
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier.size(16.dp),
+                        tint = if (isError) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            Text(
+                text = message ?: "Reading receipt…",
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodySmall,
+                color = if (isError) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
+            )
+
+            if (!isScanning) {
+                IconButton(onClick = onDismissMessage, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Dismiss receipt message",
+                        modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(Modifier.width(10.dp))
-                    Text(
-                        text = "Recurring Expense",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium
-                    )
                 }
-                Switch(
-                    checked = isRecurring,
-                    onCheckedChange = onToggle,
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Accent,
-                        checkedTrackColor = Accent.copy(alpha = 0.5f)
-                    )
+            }
+        }
+    }
+}
+
+@Composable
+private fun OcrReviewBanner(onReject: () -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f)
+    ) {
+        Row(
+            modifier = Modifier.padding(start = 14.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Receipt scanned",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = "Check the amount, category and note, then save.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            
-            if (isRecurring) {
-                Spacer(modifier = Modifier.height(12.dp))
-                ExposedDropdownMenuBox(
-                    expanded = expanded,
-                    onExpandedChange = { expanded = !expanded }
-                ) {
-                    OutlinedTextField(
-                        value = frequency.name.lowercase().replaceFirstChar { it.uppercase() },
-                        onValueChange = {},
-                        readOnly = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor(),
-                        label = { Text("Frequency") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                        shape = RoundedCornerShape(8.dp)
-                    )
-                    ExposedDropdownMenu(
-                        expanded = expanded,
-                        onDismissRequest = { expanded = false }
-                    ) {
-                        RecurringFrequency.entries.forEach { freq ->
-                            DropdownMenuItem(
-                                text = { Text(freq.name.lowercase().replaceFirstChar { it.uppercase() }) },
-                                onClick = {
-                                    onFrequencyChange(freq)
-                                    expanded = false
-                                }
-                            )
-                        }
-                    }
-                }
+            TextButton(onClick = onReject) {
+                Text("Undo", style = MaterialTheme.typography.labelLarge)
             }
         }
     }
@@ -1029,25 +869,22 @@ private fun RecurringToggle(
 
 @Composable
 private fun ErrorMessage(message: String) {
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
-        ),
-        shape = RoundedCornerShape(8.dp)
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 11.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                Icons.Default.Error,
+                imageVector = Icons.Default.Error,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.error,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(18.dp)
             )
-            Spacer(Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(10.dp))
             Text(
                 text = message,
                 style = MaterialTheme.typography.bodySmall,
@@ -1058,83 +895,88 @@ private fun ErrorMessage(message: String) {
 }
 
 @Composable
-private fun OcrReviewBanner(
-    onReject: () -> Unit
-) {
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f)
-        ),
-        shape = RoundedCornerShape(8.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    "Review Scanned Receipt",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    "Receipt fields prefilled. Review merchant (note) and date below before saving.",
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-            Spacer(Modifier.width(8.dp))
-            OutlinedButton(
-                onClick = onReject,
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text("Reject")
-            }
-        }
-    }
+private fun SectionLabel(text: String) {
+    Text(
+        text = text.uppercase(),
+        style = MaterialTheme.typography.labelMedium,
+        fontWeight = FontWeight.SemiBold,
+        letterSpacing = 1.sp,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
 }
 
+/**
+ * The Save button, pinned to the bottom of the screen.
+ *
+ * It used to be the last item in the scroll, which meant an entry could not be
+ * completed without scrolling past the whole form — and on a phone with the
+ * keyboard up, that scroll was the only way to reach it.
+ */
 @Composable
-private fun SaveButton(
+private fun SaveBar(
     isEditing: Boolean,
     isLoading: Boolean,
     isScanning: Boolean,
     hasAmount: Boolean,
     onClick: () -> Unit
 ) {
-    Button(
-        onClick = onClick,
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(56.dp),
-        enabled = !isLoading && !isScanning && hasAmount,
-        shape = RoundedCornerShape(8.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.primary,
-            disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
-        )
+            .navigationBarsPadding()
     ) {
-        if (isLoading) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(24.dp),
-                color = Color.White,
-                strokeWidth = 2.dp
+        HairLineDivider()
+        Button(
+            onClick = onClick,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 12.dp)
+                .height(52.dp),
+            enabled = !isLoading && !isScanning && hasAmount,
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                disabledContentColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
             )
-        } else {
-            Icon(
-                if (isEditing) Icons.Default.Check else Icons.Default.Add,
-                contentDescription = null,
-                modifier = Modifier.size(22.dp)
-            )
-            Spacer(Modifier.width(8.dp))
-            Text(
-                text = if (isEditing) "Update Transaction" else "Save Expense",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
-            )
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+            } else {
+                Text(
+                    text = if (isEditing) "Update Expense" else "Save Expense",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
         }
     }
 }
+
+@Composable
+private fun HairLineDivider() {
+    HorizontalDivider(
+        thickness = 0.5.dp,
+        color = MaterialTheme.colorScheme.outlineVariant
+    )
+}
+
+/** The form's text fields share one resting look, so focus is the only change. */
+@Composable
+private fun fieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedBorderColor = MaterialTheme.colorScheme.primary,
+    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+    focusedContainerColor = MaterialTheme.colorScheme.surface,
+    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+    disabledContainerColor = MaterialTheme.colorScheme.surface,
+    errorContainerColor = MaterialTheme.colorScheme.surface,
+    cursorColor = MaterialTheme.colorScheme.primary
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1146,7 +988,7 @@ private fun DatePickerDialogContent(
     val datePickerState = rememberDatePickerState(
         initialSelectedDateMillis = currentDate.toLocalDate().toEpochDay() * 86400000L
     )
-    
+
     DatePickerDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
@@ -1167,65 +1009,4 @@ private fun DatePickerDialogContent(
     ) {
         DatePicker(state = datePickerState)
     }
-}
-
-@Composable
-private fun CurrencyPickerDialog(
-    currentCurrency: String,
-    onCurrencySelected: (String) -> Unit,
-    onDismiss: () -> Unit
-) {
-    StyledAlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Select Currency", fontWeight = FontWeight.SemiBold) },
-        text = {
-            Column {
-                CurrencyService.SUPPORTED_CURRENCIES.take(10).forEach { currency ->
-                    val isSelected = currentCurrency == currency.code
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(
-                                if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-                                else Color.Transparent
-                            )
-                            .clickable { onCurrencySelected(currency.code) }
-                            .padding(vertical = 12.dp, horizontal = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = currency.symbol,
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.width(40.dp)
-                            )
-                            Column {
-                                Text(currency.code, fontWeight = FontWeight.Medium)
-                                Text(
-                                    currency.name,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                        if (isSelected) {
-                            Icon(
-                                Icons.Default.Check,
-                                contentDescription = "Selected",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        }
-    )
 }

@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.expensetracker.data.local.ExpenseDatabase
+import com.expensetracker.data.local.datastore.PreferencesManager
 import com.expensetracker.data.model.Transaction
 import com.expensetracker.data.repository.TransactionRepository
 import com.expensetracker.services.export.ExportService
@@ -22,7 +23,8 @@ data class ReportsUiState(
     val endDate: LocalDate = LocalDate.now(),
     val isLoading: Boolean = true,
     val isExporting: Boolean = false,
-    val exportResult: ExportResult? = null
+    val exportResult: ExportResult? = null,
+    val baseCurrency: String = "INR"
 )
 
 sealed class ExportResult {
@@ -32,7 +34,8 @@ sealed class ExportResult {
 
 class ReportsViewModel(
     private val transactionRepository: TransactionRepository,
-    private val exportService: ExportService
+    private val exportService: ExportService,
+    private val preferencesManager: PreferencesManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ReportsUiState())
@@ -40,6 +43,7 @@ class ReportsViewModel(
 
     init {
         loadTransactions()
+        observeBaseCurrency()
     }
 
     private fun loadTransactions() {
@@ -51,6 +55,21 @@ class ReportsViewModel(
                         isLoading = false
                     )
                 }
+            }
+        }
+    }
+
+    /**
+     * The currency the summary is reported in.
+     *
+     * This screen had no currency at all: the totals were printed as bare
+     * numbers, so "Total Amount 4820.00" on the one screen whose whole job is
+     * exporting figures could not be read as money in any particular currency.
+     */
+    private fun observeBaseCurrency() {
+        viewModelScope.launch {
+            preferencesManager.userPreferences.collect { preferences ->
+                _uiState.update { it.copy(baseCurrency = preferences.baseCurrency) }
             }
         }
     }
@@ -141,12 +160,17 @@ class ReportsViewModel(
         _uiState.update { it.copy(isExporting = false, exportResult = ExportResult.Error(message)) }
     }
 
-    class Factory(private val database: ExpenseDatabase, private val context: Context) : ViewModelProvider.Factory {
+    class Factory(
+        private val database: ExpenseDatabase,
+        private val context: Context,
+        private val preferencesManager: PreferencesManager
+    ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             return ReportsViewModel(
                 TransactionRepository(database.transactionDao()),
-                ExportService(context)
+                ExportService(context),
+                preferencesManager
             ) as T
         }
     }

@@ -16,6 +16,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.expensetracker.services.currency.CurrencyService
 import com.expensetracker.services.export.ExportService
 import com.expensetracker.ui.theme.*
 import java.io.File
@@ -278,8 +279,8 @@ fun ReportsScreen(
                     val avgTransaction = if (filtered.isNotEmpty()) total / filtered.size else 0.0
 
                     SummaryRow("Total Transactions", filtered.size.toString())
-                    SummaryRow("Total Amount", "%.2f".format(total))
-                    SummaryRow("Average Transaction", "%.2f".format(avgTransaction))
+                    SummaryRow("Total Amount", CurrencyService.formatAmount(total, uiState.baseCurrency))
+                    SummaryRow("Average Transaction", CurrencyService.formatAmount(avgTransaction, uiState.baseCurrency))
                 }
             }
         }

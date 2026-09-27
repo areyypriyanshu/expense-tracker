@@ -25,11 +25,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.expensetracker.domain.engine.BudgetStatus
+import com.expensetracker.ui.navigation.LocalScrollBlurProvider
 import com.expensetracker.services.currency.CurrencyService
 import com.expensetracker.services.insights.SpendingInsight
 import com.expensetracker.services.insights.InsightSeverity
 import com.expensetracker.ui.components.*
 import com.expensetracker.ui.theme.*
+import java.time.LocalDate
 import java.time.LocalTime
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -67,17 +69,30 @@ fun DashboardScreen(
             )
         },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = onAddTransaction,
-                modifier = Modifier.padding(bottom = bottomContentPadding),
-                containerColor = Primary.copy(alpha = FabContainerAlpha),
-                contentColor = Color(0xFFF6F3EA),
-                shape = RoundedCornerShape(8.dp),
-                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 3.dp)
+            // Out of the way once the list moves, so it never sits on top of
+            // the rows it would be covering. A solid fill needs this: the slot
+            // overlays the content rather than reserving space for it, so a
+            // button that stays put hides whatever scrolls under it.
+            val isScrolled = LocalScrollBlurProvider.current.isScrolled
+            AnimatedVisibility(
+                visible = !isScrolled,
+                enter = scaleIn(animationSpec = MotionTokens.fastTween(), initialScale = 0.85f) +
+                    fadeIn(animationSpec = MotionTokens.fastTween()),
+                exit = scaleOut(animationSpec = MotionTokens.fastTween(), targetScale = 0.85f) +
+                    fadeOut(animationSpec = MotionTokens.fastTween())
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Expense", modifier = Modifier.size(22.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Add Expense", fontWeight = FontWeight.SemiBold)
+                ExtendedFloatingActionButton(
+                    onClick = onAddTransaction,
+                    modifier = Modifier.padding(bottom = bottomContentPadding),
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    shape = RoundedCornerShape(8.dp),
+                    elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 3.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Add Expense", modifier = Modifier.size(22.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Add Expense", fontWeight = FontWeight.SemiBold)
+                }
             }
         }
     ) { padding ->
@@ -322,16 +337,28 @@ private fun BalanceOverviewCard(
                 )
                 StatItem(
                     label = "Daily Average",
-                    value = CurrencyService.formatAmount(monthlySpend / 30, currency)
-                )
-                StatItem(
-                    label = "Status",
-                    value = "Active"
+                    value = CurrencyService.formatAmount(
+                        monthlySpend / daysElapsedThisMonth(),
+                        currency
+                    )
                 )
             }
         }
     }
 }
+
+/**
+ * Whole days of the current month that have gone by, counting today.
+ *
+ * The daily average used to divide the month's spending by a flat 30, while
+ * Analytics divided the same total by the days actually elapsed. On the 27th
+ * the two screens showed the same month's spending and disagreed by 11% —
+ * ₹638 against ₹709 — for what was meant to be one number. `dayOfMonth` is
+ * exactly the elapsed-day count Analytics computes for the current month, so
+ * both now read from the same day.
+ */
+private fun daysElapsedThisMonth(today: LocalDate = LocalDate.now()): Int =
+    today.dayOfMonth
 
 @Composable
 private fun StatItem(label: String, value: String) {

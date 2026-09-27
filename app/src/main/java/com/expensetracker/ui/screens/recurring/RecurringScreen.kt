@@ -26,6 +26,12 @@ import com.expensetracker.data.model.RecurringFrequency
 import com.expensetracker.data.model.RecurringRule
 import com.expensetracker.services.currency.CurrencyService
 import com.expensetracker.ui.components.EmptyState
+import com.expensetracker.ui.components.ConfirmDeleteDialog
+import com.expensetracker.ui.components.CurrencyPickerDialog
+import com.expensetracker.ui.components.FormDialog
+import com.expensetracker.ui.components.FormField
+import com.expensetracker.ui.components.OptionPickerDialog
+import com.expensetracker.ui.components.PickerField
 import com.expensetracker.ui.components.StyledAlertDialog
 import com.expensetracker.ui.theme.*
 import java.time.format.DateTimeFormatter
@@ -113,7 +119,6 @@ fun RecurringScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AddRecurringDialog(
     baseCurrency: String,
@@ -126,9 +131,7 @@ private fun AddRecurringDialog(
     var note by remember { mutableStateOf("") }
     var frequency by remember { mutableStateOf(RecurringFrequency.MONTHLY) }
     var amountError by remember { mutableStateOf(false) }
-    var categoryExpanded by remember { mutableStateOf(false) }
-    var currencyExpanded by remember { mutableStateOf(false) }
-    var frequencyExpanded by remember { mutableStateOf(false) }
+    var picker by remember { mutableStateOf<RecurringPicker?>(null) }
 
     val categories = listOf(
         "Bills & Utilities",
@@ -141,155 +144,112 @@ private fun AddRecurringDialog(
         "Other"
     )
 
-    StyledAlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Add Recurring", fontWeight = FontWeight.SemiBold) },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 520.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                OutlinedTextField(
-                    value = amount,
-                    onValueChange = {
-                        amount = it.filter { char -> char.isDigit() || char == '.' }
-                        amountError = false
-                    },
-                    label = { Text("Amount") },
-                    singleLine = true,
-                    isError = amountError,
-                    supportingText = if (amountError) {
-                        { Text("Enter a valid amount") }
-                    } else {
-                        null
-                    },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                ExposedDropdownMenuBox(
-                    expanded = currencyExpanded,
-                    onExpandedChange = { currencyExpanded = !currencyExpanded }
-                ) {
-                    OutlinedTextField(
-                        value = currency,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Currency") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = currencyExpanded) },
-                        modifier = Modifier
-                            .menuAnchor()
-                            .fillMaxWidth()
-                    )
-                    ExposedDropdownMenu(
-                        expanded = currencyExpanded,
-                        onDismissRequest = { currencyExpanded = false }
-                    ) {
-                        CurrencyService.SUPPORTED_CURRENCIES.take(10).forEach { item ->
-                            DropdownMenuItem(
-                                text = { Text("${item.code} - ${item.name}") },
-                                onClick = {
-                                    currency = item.code
-                                    currencyExpanded = false
-                                }
-                            )
-                        }
-                    }
-                }
-
-                ExposedDropdownMenuBox(
-                    expanded = categoryExpanded,
-                    onExpandedChange = { categoryExpanded = !categoryExpanded }
-                ) {
-                    OutlinedTextField(
-                        value = category,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Category") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryExpanded) },
-                        modifier = Modifier
-                            .menuAnchor()
-                            .fillMaxWidth()
-                    )
-                    ExposedDropdownMenu(
-                        expanded = categoryExpanded,
-                        onDismissRequest = { categoryExpanded = false }
-                    ) {
-                        categories.forEach { item ->
-                            DropdownMenuItem(
-                                text = { Text(item) },
-                                onClick = {
-                                    category = item
-                                    categoryExpanded = false
-                                }
-                            )
-                        }
-                    }
-                }
-
-                OutlinedTextField(
-                    value = note,
-                    onValueChange = { note = it.take(200) },
-                    label = { Text("Note") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                ExposedDropdownMenuBox(
-                    expanded = frequencyExpanded,
-                    onExpandedChange = { frequencyExpanded = !frequencyExpanded }
-                ) {
-                    OutlinedTextField(
-                        value = frequency.name.lowercase().replaceFirstChar { it.uppercase() },
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Frequency") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = frequencyExpanded) },
-                        modifier = Modifier
-                            .menuAnchor()
-                            .fillMaxWidth()
-                    )
-                    ExposedDropdownMenu(
-                        expanded = frequencyExpanded,
-                        onDismissRequest = { frequencyExpanded = false }
-                    ) {
-                        RecurringFrequency.entries.forEach { item ->
-                            DropdownMenuItem(
-                                text = { Text(item.name.lowercase().replaceFirstChar { it.uppercase() }) },
-                                onClick = {
-                                    frequency = item
-                                    frequencyExpanded = false
-                                }
-                            )
-                        }
-                    }
-                }
+    FormDialog(
+        title = "Add Recurring",
+        confirmLabel = "Add",
+        // The error is raised by pressing Add, not by the field losing focus,
+        // so a blank form still offers the button and explains itself after.
+        confirmEnabled = true,
+        onConfirm = {
+            val parsedAmount = amount.toDoubleOrNull()
+            if (parsedAmount == null || parsedAmount <= 0.0) {
+                amountError = true
+                return@FormDialog
             }
+            onAdd(parsedAmount, currency, category, note, frequency)
         },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    val parsedAmount = amount.toDoubleOrNull()
-                    if (parsedAmount == null || parsedAmount <= 0.0) {
-                        amountError = true
-                        return@TextButton
-                    }
-                    onAdd(parsedAmount, currency, category, note, frequency)
-                }
-            ) {
-                Text("Add")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        }
-    )
+        onDismiss = onDismiss
+    ) {
+        FormField(
+            label = "Amount",
+            value = amount,
+            onValueChange = {
+                amount = it.filter { char -> char.isDigit() || char == '.' }
+                amountError = false
+            },
+            placeholder = "0",
+            prefix = CurrencyService.getSymbol(currency),
+            keyboardType = KeyboardType.Decimal,
+            isError = amountError,
+            supportingText = if (amountError) "Enter a valid amount" else null
+        )
+
+        PickerField(
+            label = "Currency",
+            value = currency,
+            placeholder = "Choose a currency",
+            onClick = { picker = RecurringPicker.Currency }
+        )
+
+        PickerField(
+            label = "Category",
+            value = category,
+            placeholder = "Choose a category",
+            onClick = { picker = RecurringPicker.Category }
+        )
+
+        FormField(
+            label = "Note",
+            value = note,
+            onValueChange = { note = it.take(200) },
+            placeholder = "Optional"
+        )
+
+        PickerField(
+            label = "Frequency",
+            value = frequency.displayName(),
+            placeholder = "Choose a frequency",
+            onClick = { picker = RecurringPicker.Frequency }
+        )
+    }
+
+    when (picker) {
+        // The same picker Add Expense and Settings use, so all three list every
+        // currency in one place. This dialog used to show the first ten only.
+        RecurringPicker.Currency -> CurrencyPickerDialog(
+            selectedCode = currency,
+            onSelect = {
+                currency = it
+                picker = null
+            },
+            onDismiss = { picker = null }
+        )
+
+        RecurringPicker.Category -> OptionPickerDialog(
+            title = "Category",
+            options = categories,
+            selected = category,
+            label = { it },
+            onSelect = {
+                category = it
+                picker = null
+            },
+            onDismiss = { picker = null },
+            leadingIcon = { getCategoryIcon(it) },
+            leadingTint = { getCategoryColor(it) }
+        )
+
+        RecurringPicker.Frequency -> OptionPickerDialog(
+            title = "Frequency",
+            options = RecurringFrequency.entries,
+            selected = frequency,
+            label = { it.displayName() },
+            onSelect = {
+                frequency = it
+                picker = null
+            },
+            onDismiss = { picker = null }
+        )
+
+        null -> Unit
+    }
 }
+
+/** Which of the Add Recurring fields is currently asking to be changed. */
+private enum class RecurringPicker { Currency, Category, Frequency }
+
+private fun RecurringFrequency.displayName(): String =
+    name.lowercase().replaceFirstChar { it.uppercase() }
 
 @Composable
 private fun RecurringRuleCard(
@@ -391,23 +351,14 @@ private fun RecurringRuleCard(
     }
 
     if (showDeleteConfirm) {
-        StyledAlertDialog(
-            onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("Delete Recurring", fontWeight = FontWeight.SemiBold) },
-            text = { Text("Are you sure you want to delete this recurring expense?") },
-            confirmButton = {
-                TextButton(onClick = {
-                    onDelete()
-                    showDeleteConfirm = false
-                }) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
-                }
+        ConfirmDeleteDialog(
+            title = "Delete this recurring expense?",
+            detail = "${CurrencyService.formatAmount(rule.amount, rule.currency)} · ${rule.category}",
+            onConfirm = {
+                onDelete()
+                showDeleteConfirm = false
             },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) {
-                    Text("Cancel")
-                }
-            }
+            onDismiss = { showDeleteConfirm = false }
         )
     }
 }

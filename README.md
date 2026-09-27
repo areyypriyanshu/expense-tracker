@@ -1,6 +1,40 @@
-# 🪙 Expense Tracker (v1.0.4)
+# 🪙 Expense Tracker (v1.5.0)
 
 A modern, minimalist, and intelligent expense-tracking application built for Android using Kotlin and Jetpack Compose. Designed with a focus on calm, scannable aesthetics and offline-first automation, the app streamlines expense management using smart features like SMS transaction syncing, budgets, recurring expenses, and analytics.
+
+---
+
+## 🆕 What's New in v1.5.0
+
+A release focused on the interface: the same information, in less space, arranged so the state of the app is visible rather than hidden.
+
+**The Add Expense form, rebuilt**
+* The amount and the currency it is denominated in are now one control — tap the currency in the amount row to change it, instead of finding it under an expanded "More options" section.
+* Category selection moved from a 4-wide grid of icon cards to the same chips used everywhere else in the app.
+* **Save is pinned** to the bottom of the screen. It used to be the last item in a scroll, so an entry could not be completed without scrolling past the whole form — and with the keyboard up, that scroll was the only way to reach it.
+
+**The trend chart's x-axis**
+* A month names its two ends and stops. The axis used to draw every day it could fit and drop the rest, which produced `1 2 3 4 5 6 7 8 9 11 13 15 17 19 21 23 25` on a 27-day month — single-digit days a third of an inch apart, two-digit days twice that far apart, and the 10th and 12th missing entirely.
+* Any day in between is one tap away, with its full date in the callout.
+* Fixed a geometry bug that offset every axis label by the value-axis gutter, which is why the final column had no label at all.
+
+**Dialogs and pickers, unified**
+* One picker design across the app: title, a rule, one line per option, a check on the selection, a bounded list, and no buttons. It replaces the `ExposedDropdownMenuBox` that category and period pickers used, which drew a static choice to look like something you could type into and opened upward out of the form when the field sat low.
+* The currency picker is now a single implementation shared by Add Expense, Settings, and Add Recurring. The Add Expense and Add Recurring copies were the older one — two-line rows and **only the first ten of fifteen currencies**, leaving BRL, KRW, MXN, RUB and ZAR unreachable.
+* Delete confirmations replaced: one quiet dialog naming the exact item, with the destructive choice as the only filled thing on screen. Previously a full-width icon stack, a divider, and two equally-weighted text buttons.
+* Add Budget and Add Recurring rebuilt as flat forms — no floating labels, a scrolling body, and pinned actions.
+
+**Transactions filter**
+* The category filter is a row of chips pinned under the search bar, always open. It used to be hidden behind a 44dp circle that expanded a card, so the only way to slice the list was invisible and nothing on screen said a filter was active once you had scrolled.
+
+**Floating action buttons**
+* All three are solid dark green again. They had been rendered at 60% opacity as a workaround for covering the list; the Home and Transactions buttons now get out of the way when the list moves instead, so a solid fill no longer hides content.
+
+**Correctness**
+* Receipt scanning no longer changes the currency. The OCR's guess could file a total read from one currency under another — a stray `$` or the word "EUR" anywhere in the image was enough. The scan fills the amount; the currency stays INR until the user changes it.
+* Home and Analytics disagreed on "Daily Average" for the same month's total — one divided by 30, the other by the days elapsed, 11% apart. Both now use elapsed days.
+* Reports printed money as a bare `4820.00`, ignoring the configured base currency.
+* Removed a placeholder "Status: Active" from the Home summary card. It was a hardcoded string, not connected to any state, and nothing could ever change it.
 
 ---
 
@@ -17,6 +51,7 @@ Automatically syncs transactions by parsing incoming transactional SMS messages 
 Understand your spending patterns through clean, scannable visualizations.
 * **Hand-drawn Charts:** The bar chart and category donut are drawn directly on a Compose `Canvas` (`SpendingBarChart`, `DonutChartSection` in `AnalyticsScreen`) rather than through a charting library. This keeps the visuals on the same palette as the rest of the app and avoids a charting dependency.
 * **Honest axes:** The trend chart puts one column per day (or month) across the whole period, including days with no spending, and labels a value axis rounded to a readable step — so column height, position and the total at the top all mean the same thing.
+* **A readable x-axis:** A month is up to 31 columns, and no phone-width axis can name all of them. Rather than draw what fits and drop the rest — which put single-digit days a third of an inch apart, two-digit days twice that far apart, and skipped days entirely in the gaps — the axis names where the period starts and ends, and every day in between is one tap away with its full date in the callout. Weeks and years fit whole and are still named in full.
 * **Tap to inspect:** Tapping a bar or a donut segment lifts its exact value into a callout or the ring's centre; tapping again clears it.
 * **Distinct category colours:** Swatches are assigned by rank, biggest category first, so no two segments of a chart can come out the same colour, and the donut's tail folds into one labelled "Other" slice rather than disappearing from the legend.
 * **Calm Reveals:** The total, then the bars, then the donut animate in sequence off shared `MotionTokens` so the screen resolves top-to-bottom instead of everything moving at once.
@@ -45,7 +80,7 @@ Scan physical receipts and bills using your camera to automatically extract tran
 * **Smart Receipt Parsing:** The `ReceiptParser` analyses the extracted text to identify the total amount, merchant name, transaction date, and currency. It handles a wide range of receipt formats including Indian POS layouts, GST invoices, and restaurant bills.
 * **Intelligent Total Detection:** Prioritises labelled totals in order (`Grand Total` → `Amount Due` → `Payable` → `Net Total` → `Total`) with exclusion rules to avoid picking up tax subtotals, item counts, or GST lines.
 * **Merchant & Date Extraction:** Scores candidate merchant name lines based on position, capitalisation, and business suffix keywords. Detects dates in multiple formats (`DD/MM/YYYY`, `DD-MMM-YYYY`, ISO, etc.) with ambiguity flagging.
-* **Multi-Currency Detection:** Automatically detects currency from symbols and keywords (`₹`, `Rs.`, `INR`, `$`, `€`, `£`) and falls back to the user's base currency.
+* **Currency is the user's, not the scanner's:** `ReceiptParser` still reports what currency it found (`₹`, `Rs.`, `INR`, `$`, `€`, `£`), but the scan does **not** apply it. A guess is only as good as a regex over the whole image, and a stray `$` or the word "EUR" on a receipt is enough to file a total read in one currency under another. The form's own currency stands — INR for a new entry, or whatever the user had already chosen — until they change it themselves.
 
 ### 7. 🤖 On-Device Finance Assistant
 Ask plain-language questions about your finances without sending your data to a server.
@@ -63,6 +98,7 @@ The user interface follows a specialized design contract outlined in [UI-SPEC.md
 * **Elevation & Density:** Uses subtle borders and tonal surface overlays instead of heavy drop shadows. High visual density organizes financial data efficiently and cleanly.
 * **Typography:** Bold fonts reserved for key monetary figures and screen headers; otherwise uses medium weights to maintain a calm hierarchy.
 * **Motion:** Every duration, curve and reveal stagger comes from `MotionTokens` (`ui/theme/Motion.kt`) — calm easing that starts unhurried and settles without a hard stop, matched durations within a single gesture, tweens rather than springs on size changes, and full respect for the system "remove animations" setting.
+* **One dialog language:** Modals are purpose-built in `ui/components/` rather than assembled from Material's `AlertDialog`. A picker (`OptionPickerDialog`, `CurrencyPickerDialog`) is a title, a hairline, one line per option with the selection marked, a bounded scrolling list and no buttons; a short form (`FormDialog`) is the same shell with flat labelled fields, a scrolling body and exactly one filled action. The point is that a control which cannot be typed into should not look like one, and a choice should not depend on a menu finding room above or below its anchor.
 
 ---
 
@@ -104,7 +140,8 @@ app/src/main/java/com/expensetracker/
 │   ├── receipt/        # On-device OCR and receipt-detail parsing
 │   └── upisync/        # WorkManager background workers and SMS parsers
 └── ui/
-    ├── components/     # Reusable layout UI components and the scroll-aware blur scrim
+    ├── components/     # Reusable layout components, the shared dialog/picker family,
+    │                   #   and the scroll-aware blur scrim
     ├── navigation/     # Jetpack Compose navigation configuration
     ├── screens/        # Feature screens (Dashboard, Transactions, Analytics, Budgets,
     │                   #   Recurring, Import, Reports, Assistant, UPI Sync, Settings)

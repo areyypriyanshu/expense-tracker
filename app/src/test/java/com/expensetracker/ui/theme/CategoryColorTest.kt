@@ -133,13 +133,18 @@ class CategoryColorTest {
         }
 
         fun toLab(c: Color): Triple<Double, Double, Double> {
-            fun lin(v: Double): Double {
-                val x = v / 255.0
+            // Color.red/green/blue are already sRGB in 0..1. Dividing by 255
+            // again here — as this did — pushed every channel down to about a
+            // thousandth of its value, which collapsed the whole palette to
+            // black and made every pair read as ΔE 0.1. The palette was never
+            // the problem; the measurement was.
+            fun lin(channel: Float): Double {
+                val x = channel.toDouble()
                 return if (x <= 0.04045) x / 12.92 else Math.pow((x + 0.055) / 1.055, 2.4)
             }
-            val r = lin(c.red.toDouble())
-            val g = lin(c.green.toDouble())
-            val b = lin(c.blue.toDouble())
+            val r = lin(c.red)
+            val g = lin(c.green)
+            val b = lin(c.blue)
             val x = (0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047
             val y = 0.2126 * r + 0.7152 * g + 0.0722 * b
             val z = (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883

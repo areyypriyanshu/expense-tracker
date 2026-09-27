@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import com.expensetracker.data.model.Transaction
 import com.expensetracker.services.currency.CurrencyService
 import com.expensetracker.ui.components.*
+import com.expensetracker.ui.navigation.LocalScrollBlurProvider
 import com.expensetracker.ui.theme.*
 import java.time.LocalTime
 
@@ -38,7 +39,6 @@ fun TransactionsScreen(
     viewModel: TransactionsViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    var showFilters by remember { mutableStateOf(false) }
     var transactionToDelete by remember { mutableStateOf<Transaction?>(null) }
     
     val greeting = when (LocalTime.now().hour) {
@@ -52,15 +52,14 @@ fun TransactionsScreen(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             Column(
-                modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                modifier = Modifier.background(MaterialTheme.colorScheme.background)
             ) {
                 TransactionsHeader(
                     greeting = greeting,
                     currency = uiState.baseCurrency,
                     todaySpend = uiState.todaySpend,
                     weeklySpend = uiState.weeklySpend,
-                    monthlySpend = uiState.monthlySpend,
-                    onFilterClick = { showFilters = !showFilters }
+                    monthlySpend = uiState.monthlySpend
                 )
 
                 SearchBar(
@@ -68,20 +67,47 @@ fun TransactionsScreen(
                     onQueryChange = viewModel::onSearchQueryChange,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 8.dp)
+                        .padding(horizontal = 20.dp)
+                )
+
+                // Pinned under the search, and always open.
+                //
+                // Filtering used to live behind a 44dp circle in the header
+                // that expanded a card — so the one way to slice this list was
+                // invisible, the card arrived by shoving the list down, and once
+                // you had scrolled there was nothing on screen to say a filter
+                // was on. A row of chips that is simply there says what is
+                // filtered at all times, and the header gets its clutter back.
+                CategoryFilterRow(
+                    categories = uiState.categories,
+                    selectedCategory = uiState.selectedCategory,
+                    onCategorySelected = viewModel::onCategorySelected
                 )
             }
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = onAddTransaction,
-                modifier = Modifier.padding(bottom = bottomContentPadding),
-                containerColor = Primary.copy(alpha = FabContainerAlpha),
-                contentColor = Color(0xFFF6F3EA),
-                shape = CircleShape,
-                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 3.dp)
+            // Out of the way once the list moves, so it never sits on top of
+            // the rows it would be covering. A solid fill needs this: the slot
+            // overlays the content rather than reserving space for it, so a
+            // button that stays put hides whatever scrolls under it.
+            val isScrolled = LocalScrollBlurProvider.current.isScrolled
+            AnimatedVisibility(
+                visible = !isScrolled,
+                enter = scaleIn(animationSpec = MotionTokens.fastTween(), initialScale = 0.85f) +
+                    fadeIn(animationSpec = MotionTokens.fastTween()),
+                exit = scaleOut(animationSpec = MotionTokens.fastTween(), targetScale = 0.85f) +
+                    fadeOut(animationSpec = MotionTokens.fastTween())
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Transaction")
+                FloatingActionButton(
+                    onClick = onAddTransaction,
+                    modifier = Modifier.padding(bottom = bottomContentPadding),
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    shape = CircleShape,
+                    elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 3.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Add Transaction")
+                }
             }
         }
     ) { padding ->
@@ -97,20 +123,6 @@ fun TransactionsScreen(
                     .padding(padding)
                     .animateContentSize(animationSpec = MotionTokens.gentle())
             ) {
-                AnimatedVisibility(
-                    visible = showFilters,
-                    enter = MotionTokens.expandWithFade(),
-                    exit = MotionTokens.collapseWithFade()
-                ) {
-                    FilterSection(
-                        categories = uiState.categories,
-                        selectedCategory = uiState.selectedCategory,
-                        onCategorySelected = viewModel::onCategorySelected,
-                        onClearFilters = {
-                            viewModel.onCategorySelected(null)
-                        }
-                    )
-                }
 
                 if (uiState.isLoading) {
                     LazyColumn(
@@ -165,27 +177,17 @@ fun TransactionsScreen(
         } // end ScrollAwareBlurScrim
         
         if (transactionToDelete != null) {
-            StyledAlertDialog(
-                onDismissRequest = { transactionToDelete = null },
-                title = { Text("Delete Transaction") },
-                text = { Text("Are you sure you want to delete this transaction? This action cannot be undone.") },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            transactionToDelete?.let { viewModel.deleteTransaction(it) }
-                            transactionToDelete = null
-                        }
-                    ) {
-                        Text("Delete", color = MaterialTheme.colorScheme.error)
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { transactionToDelete = null }) {
-                        Text("Cancel")
-                    }
-                },
-                icon = { Icon(Icons.Default.Delete, contentDescription = null) }
-            )
+            transactionToDelete?.let { target ->
+                ConfirmDeleteDialog(
+                    title = "Delete this expense?",
+                    detail = "${CurrencyService.formatAmount(target.amount, target.currency)} · ${target.category}",
+                    onConfirm = {
+                        viewModel.deleteTransaction(target)
+                        transactionToDelete = null
+                    },
+                    onDismiss = { transactionToDelete = null }
+                )
+            }
         }
     }
 }
@@ -196,8 +198,7 @@ private fun TransactionsHeader(
     currency: String,
     todaySpend: Double,
     weeklySpend: Double,
-    monthlySpend: Double,
-    onFilterClick: () -> Unit
+    monthlySpend: Double
 ) {
     Column(
         modifier = Modifier
@@ -206,39 +207,17 @@ private fun TransactionsHeader(
             .statusBarsPadding()
             .padding(horizontal = 20.dp, vertical = 14.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(
-                    text = greeting,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = "Transactions",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            }
-            
-            IconButton(
-                onClick = onFilterClick,
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surface)
-            ) {
-                Icon(
-                    Icons.Default.FilterList,
-                    contentDescription = "Filter",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
+        Text(
+            text = greeting,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = "Transactions",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
 
         Spacer(modifier = Modifier.height(12.dp))
 
@@ -271,81 +250,40 @@ private fun TransactionsHeader(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * The category filter, as a row of chips that is simply always there.
+ *
+ * One chip family, one look: the "All" chip is the same [CategoryChip] with a
+ * list glyph and the neutral colour, rather than a hand-styled `FilterChip`
+ * sitting next to twelve that are styled by category — which is what the old
+ * row looked like, two components that matched in size but not in voice.
+ */
 @Composable
-private fun FilterSection(
+private fun CategoryFilterRow(
     categories: List<com.expensetracker.data.model.Category>,
     selectedCategory: String?,
-    onCategorySelected: (String?) -> Unit,
-    onClearFilters: () -> Unit
+    onCategorySelected: (String?) -> Unit
 ) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 8.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        shape = RoundedCornerShape(8.dp),
-        border = CardDefaults.outlinedCardBorder()
+    LazyRow(
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 2.dp, bottom = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Filter by Category",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-                if (selectedCategory != null) {
-                    TextButton(
-                        onClick = onClearFilters,
-                        contentPadding = PaddingValues(horizontal = 8.dp)
-                    ) {
-                        Text(
-                            "Clear",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                item {
-                    FilterChip(
-                        selected = selectedCategory == null,
-                        onClick = { onCategorySelected(null) },
-                        label = { Text("All") },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                            selectedLabelColor = MaterialTheme.colorScheme.primary
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            borderColor = MaterialTheme.colorScheme.outline,
-                            selectedBorderColor = MaterialTheme.colorScheme.primary,
-                            enabled = true,
-                            selected = selectedCategory == null
-                        )
-                    )
-                }
-                items(categories) { category ->
-                    CategoryChip(
-                        category = category.name,
-                        isSelected = selectedCategory == category.name,
-                        onClick = { onCategorySelected(category.name) }
-                    )
-                }
-            }
+        item(key = "all") {
+            CategoryChip(
+                category = "All",
+                isSelected = selectedCategory == null,
+                onClick = { onCategorySelected(null) },
+                icon = Icons.Outlined.List,
+                color = NeutralCategoryColor
+            )
+        }
+        items(categories, key = { it.name }) { category ->
+            CategoryChip(
+                category = category.name,
+                isSelected = selectedCategory == category.name,
+                onClick = { onCategorySelected(category.name) }
+            )
         }
     }
 }

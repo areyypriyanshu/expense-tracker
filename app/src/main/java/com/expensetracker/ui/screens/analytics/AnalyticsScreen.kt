@@ -33,7 +33,10 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.ExperimentalTextApi
+import androidx.compose.ui.text.TextMeasurer
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -231,7 +234,19 @@ private fun QuickPill(label: String, value: String, modifier: Modifier = Modifie
 
 // --- Spending Trend Chart ---
 
-private data class ChartPoint(val label: String, val fullLabel: String, val amount: Double)
+/**
+ * One column of the trend chart.
+ *
+ * [label] is what the x-axis prints when it names this column, [shortLabel] is
+ * the same date in a form that fits on one line outside the plot (the "Peak"
+ * pill), and [fullLabel] is the whole date, which the tap callout shows.
+ */
+internal data class ChartPoint(
+    val label: String,
+    val shortLabel: String,
+    val fullLabel: String,
+    val amount: Double
+)
 
 /** Plot proportions, in dp. Shared by the canvas and the overlay so the
  *  columns, the gridlines and the callout all agree on where things are. */
@@ -259,27 +274,67 @@ private const val AXIS_DIVISIONS = 4
  * labelled them 3, 19, 27 — an axis where distance no longer means time. An
  * empty day is information ("nothing spent"), so it keeps its column.
  */
-private fun List<DailySpending>.toChartPoints(period: ReportPeriod, today: LocalDate): List<ChartPoint> {
+internal fun List<DailySpending>.toChartPoints(period: ReportPeriod, today: LocalDate): List<ChartPoint> {
     val byDate = associate { LocalDate.parse(it.date) to it.amount }
     val dayFmt = DateTimeFormatter.ofPattern("d")
     val weekFmt = DateTimeFormatter.ofPattern("EEE", Locale.getDefault())
     val monthFmt = DateTimeFormatter.ofPattern("MMM", Locale.getDefault())
     val longFmt = DateTimeFormatter.ofPattern("EEE d MMM", Locale.getDefault())
+    val shortDayFmt = DateTimeFormatter.ofPattern("d MMM", Locale.getDefault())
+    val shortWeekFmt = DateTimeFormatter.ofPattern("EEE d", Locale.getDefault())
     return when (period) {
         ReportPeriod.WEEKLY -> (6 downTo 0).map { back ->
             val date = today.minusDays(back.toLong())
-            ChartPoint(date.format(weekFmt), date.format(longFmt), byDate[date] ?: 0.0)
+            ChartPoint(
+                date.format(weekFmt),
+                date.format(shortWeekFmt),
+                date.format(longFmt),
+                byDate[date] ?: 0.0
+            )
         }
         ReportPeriod.MONTHLY -> (1..today.dayOfMonth).map { day ->
             val date = today.withDayOfMonth(day)
-            ChartPoint(date.format(dayFmt), date.format(longFmt), byDate[date] ?: 0.0)
+            ChartPoint(
+                date.format(dayFmt),
+                date.format(shortDayFmt),
+                date.format(longFmt),
+                byDate[date] ?: 0.0
+            )
         }
         ReportPeriod.YEARLY -> (1..today.monthValue).map { month ->
             val total = byDate.filterKeys { YearMonth.from(it).monthValue == month && it.year == today.year }
                 .values.sum()
             val firstOfMonth = today.withDayOfMonth(1).withMonth(month)
-            ChartPoint(firstOfMonth.format(monthFmt), firstOfMonth.format(monthFmt), total)
+            ChartPoint(firstOfMonth.format(monthFmt), firstOfMonth.format(monthFmt), firstOfMonth.format(monthFmt), total)
         }
+    }
+}
+
+/**
+ * Which columns the x-axis names, and what it calls them.
+ *
+ * A month is up to 31 columns of bare day numbers, and no phone-width axis can
+ * carry that many. The obvious answer — draw them all and drop whatever does not
+ * fit — is what produced the axis this replaced: a run of single-digit days a
+ * third of an inch apart, then a run of two-digit days twice that far apart,
+ * with a label or two missing in the middle because the gap rule had nowhere to
+ * put them. The result read as 1 2 3 4 5 6 7 8 9 11 13 15 17 19 21 23 25, which
+ * is not a scale: two rhythms on one axis, and not even every day named.
+ *
+ * So a month names its two ends and nothing else — where the period started and
+ * where it ended — and any day between them is one tap away, with the full date
+ * in the callout. Two labels are also the only number that can be trusted to sit
+ * under the right column, because there are enough of them to be exact.
+ *
+ * A week is seven columns and a year twelve, and both fit whole, so they are
+ * still named in full.
+ */
+internal fun xAxisTicks(points: List<ChartPoint>, period: ReportPeriod): List<Pair<Int, String>> {
+    if (points.isEmpty()) return emptyList()
+    if (points.size == 1) return listOf(0 to points[0].label)
+    return when (period) {
+        ReportPeriod.MONTHLY -> listOf(0 to points.first().label, points.lastIndex to points.last().label)
+        ReportPeriod.WEEKLY, ReportPeriod.YEARLY -> points.mapIndexed { index, point -> index to point.label }
     }
 }
 
@@ -323,17 +378,107 @@ private fun axisValueLabel(value: Double, symbol: String): String {
 }
 
 /**
- * Which columns get an x-axis label. While they all fit, every column is
- * labelled; past that the axis thins to a fixed number of evenly spaced ticks
- * that always include the first and the last, so the labels read as a scale
- * instead of a scatter of arbitrary every-fifths.
+ * Which columns keep their x-axis label.
+ *
+ * [centres] and [widths] are the measured position and measured width of each
+ * label, in dp and index-matched. A label is kept when it can sit at its own
+ * centre with [gap] of air to the right of the label kept before it, so the
+ * ticks come out near-evenly spaced without ever being told how many of them
+ * to draw. The first and last column always keep theirs: an axis that drops
+ * its endpoints stops reading as a scale.
+ *
+ * A label is kept whole or dropped whole. This is the part that matters — the
+ * version it replaces divided the axis into equal columns and let each label
+ * have no more than one of them, so in a 20-to-31 day month two digits at
+ * labelSmall did not fit and came out as their first character. The axis read
+ * 1, 5, 9, 12, 16, 2.
  */
-private fun xLabelIndices(count: Int, maxLabels: Int): Set<Int> = when {
-    count <= 0 -> emptySet()
-    count <= maxLabels -> (0 until count).toSet()
-    else -> (0 until maxLabels)
-        .map { ((count - 1).toFloat() * it / (maxLabels - 1)).roundToInt() }
-        .toSet()
+internal fun xLabelIndices(centres: List<Float>, widths: List<Float>, gap: Float): Set<Int> {
+    if (centres.isEmpty()) return emptySet()
+    val kept = sortedSetOf<Int>()
+    var lastRight = Float.NEGATIVE_INFINITY
+    centres.indices.forEach { index ->
+        if (centres[index] - widths[index] / 2f >= lastRight + gap) {
+            kept += index
+            lastRight = centres[index] + widths[index] / 2f
+        }
+    }
+    val last = centres.lastIndex
+    if (last !in kept) {
+        val left = centres[last] - widths[last] / 2f
+        // The last column outranks the interior ticks, so they give way to it.
+        while (kept.size > 1 && centres[kept.last()] + widths[kept.last()] / 2f + gap > left) {
+            kept.remove(kept.last())
+        }
+        kept += last
+    }
+    return kept
+}
+
+/** Air kept between two neighbouring x-axis labels, so they read as ticks. */
+private val X_LABEL_GAP = 6.dp
+
+/**
+ * The x-axis, drawing exactly the ticks it is handed.
+ *
+ * Each tick carries the column it belongs to, so the label is placed at that
+ * column's centre and measured to its own width — a two-digit day such as "21"
+ * is drawn whole and can never be cut down, or nudged off the column it names.
+ *
+ * The geometry is the canvas's: the plot runs from the right of [AXIS_GUTTER]
+ * to the right edge, and that is the span a column is measured against here
+ * too. The version this replaces divided by the full width while drawing inside
+ * a box already inset by the gutter, which pushed every label one gutter-width
+ * to the right of the bar it named — harmless in the middle, and enough to
+ * throw the last column's label clean off the card. That is why a 27-day month
+ * used to end its axis on "25".
+ *
+ * The collision pass stays as a backstop for the periods that still ask for
+ * every column, but it is no longer what decides the axis: what gets named is
+ * [xAxisTicks]' decision, made before anything was measured.
+ */
+@Composable
+private fun XAxisLabels(
+    ticks: List<Pair<Int, String>>,
+    columnCount: Int,
+    plotWidth: Dp,
+    measurer: TextMeasurer,
+    style: TextStyle
+) {
+    if (ticks.isEmpty() || columnCount <= 0 || plotWidth <= 0.dp) return
+    val density = LocalDensity.current
+    // Worked out in pixels, because that is what the text measurer and the
+    // offsets below speak; dp only at the edges.
+    val gutterPx = with(density) { AXIS_GUTTER.toPx() }
+    val plotPx = with(density) { plotWidth.toPx() }
+    // The span the columns themselves occupy: everything right of the gutter.
+    val innerWidth = (plotPx - gutterPx).coerceAtLeast(1f)
+    val slot = innerWidth / columnCount
+    val gapPx = with(density) { X_LABEL_GAP.toPx() }
+    // A pixel over the measured width, so rounding can never shave a sliver off
+    // the last glyph and bring the clipping back through the other door.
+    val widths = ticks.map { measurer.measure(it.second, style).size.width.toFloat() + 1f }
+    val centres = ticks.map { slot * (it.first + 0.5f) }
+    val keep = remember(ticks, plotPx, style) { xLabelIndices(centres, widths, gapPx) }
+    val rightEdge = (innerWidth - 1f).coerceAtLeast(0f)
+    Box(Modifier.fillMaxWidth().padding(start = AXIS_GUTTER)) {
+        ticks.forEachIndexed { index, tick ->
+            if (index !in keep) return@forEachIndexed
+            val width = widths[index]
+            // Pulled back inside the plot if it would hang off either end.
+            val x = (centres[index] - width / 2f).coerceIn(0f, (rightEdge - width).coerceAtLeast(0f))
+            Text(
+                tick.second,
+                modifier = Modifier
+                    .offset(x = with(density) { x.toDp() })
+                    .width(with(density) { width.toDp() }),
+                style = style,
+                maxLines = 1,
+                softWrap = false,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
 }
 
 @Composable
@@ -344,6 +489,7 @@ private fun SpendingChart(dailySpending: List<DailySpending>, period: ReportPeri
     val averageAmount = if (chartPoints.isNotEmpty()) chartPoints.sumOf { it.amount } / chartPoints.size else 0.0
     val highestPoint = chartPoints.maxByOrNull { it.amount }?.takeIf { it.amount > 0 }
     val axisMax = niceAxisMax(maxAmount)
+    val axisTicks = remember(chartPoints, period) { xAxisTicks(chartPoints, period) }
     var selectedIndex by remember(chartPoints) { mutableStateOf<Int?>(null) }
 
     Card(
@@ -369,12 +515,16 @@ private fun SpendingChart(dailySpending: List<DailySpending>, period: ReportPeri
             Spacer(Modifier.height(14.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 QuickPill("Average", CurrencyService.formatAmount(averageAmount, currency), Modifier.weight(1f))
-                QuickPill("Peak", highestPoint?.label ?: "-", Modifier.weight(1f))
+                // The date, not the bare day number: the axis names only the
+                // two ends of the month, so a lone "26" here would be a number
+                // with nothing on screen to line it up against.
+                QuickPill("Peak", highestPoint?.shortLabel ?: "-", Modifier.weight(1f))
             }
             Spacer(Modifier.height(18.dp))
             if (chartPoints.isNotEmpty() && maxAmount > 0) {
                 SpendingBarChart(
                     points = chartPoints,
+                    axisTicks = axisTicks,
                     axisMax = axisMax,
                     averageAmount = averageAmount,
                     currency = currency,
@@ -405,6 +555,7 @@ private fun SpendingChart(dailySpending: List<DailySpending>, period: ReportPeri
 @Composable
 private fun SpendingBarChart(
     points: List<ChartPoint>,
+    axisTicks: List<Pair<Int, String>>,
     axisMax: Double,
     averageAmount: Double,
     currency: String,
@@ -435,10 +586,6 @@ private fun SpendingBarChart(
         // Captured here because the nested layout scopes below cannot reach the
         // BoxWithConstraints receiver directly.
         val plotWidth = maxWidth
-        // A label needs roughly this much room before it would collide with its
-        // neighbour; the rest of the axis goes to the columns.
-        val maxLabels = ((plotWidth - AXIS_GUTTER) / 34.dp).toInt().coerceIn(3, 8)
-        val labelIndices = remember(points.size, maxLabels) { xLabelIndices(points.size, maxLabels) }
         val plotHeight = PLOT_HEIGHT - PLOT_TOP_INSET
         val selected = selectedIndex?.takeIf { it in points.indices }
 
@@ -574,23 +721,17 @@ private fun SpendingBarChart(
             }
 
             Spacer(Modifier.height(X_AXIS_GUTTER))
-            // The x-axis shares the columns' geometry exactly — same gutter, same
-            // slot count — so a label always sits under the bar it belongs to.
-            Row(Modifier.fillMaxWidth().padding(start = AXIS_GUTTER)) {
-                points.forEachIndexed { index, point ->
-                    Box(Modifier.weight(1f), contentAlignment = Alignment.TopCenter) {
-                        if (index in labelIndices) {
-                            Text(
-                                point.label,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = labelColor,
-                                maxLines = 1,
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    }
-                }
-            }
+            // The x-axis shares the columns' geometry exactly — same gutter,
+            // same slot centres — so a label always sits under the bar it
+            // belongs to, and is measured to its own width rather than to the
+            // slot it happens to share.
+            XAxisLabels(
+                ticks = axisTicks,
+                columnCount = points.size,
+                plotWidth = plotWidth,
+                measurer = measurer,
+                style = axisLabelStyle
+            )
             Spacer(Modifier.height(6.dp))
             ChartLegend(averageAmount, currency, selected != null)
         }

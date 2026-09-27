@@ -13,8 +13,8 @@ android {
         applicationId = "com.expensetracker"
         minSdk = 26
         targetSdk = 34
-        versionCode = 4
-        versionName = "1.0.4"
+        versionCode = 5
+        versionName = "1.5.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -57,6 +57,11 @@ android {
     }
     buildFeatures {
         compose = true
+        // Generates BuildConfig, which is where VERSION_NAME comes from. Off by
+        // default since AGP 8 because most apps never read it — this one does,
+        // to show the version on the About screen. Without it that number has
+        // to be typed in a second place and can silently go stale.
+        buildConfig = true
     }
     packaging {
         resources {

@@ -28,6 +28,12 @@ import com.expensetracker.ui.components.AppHeader
 import com.expensetracker.ui.components.EmptyState
 import com.expensetracker.ui.components.ScrollAwareBlurScrim
 import com.expensetracker.ui.components.SmoothLinearProgressIndicator
+import com.expensetracker.ui.components.ConfirmDeleteDialog
+import com.expensetracker.ui.components.FormDialog
+import com.expensetracker.ui.components.FormField
+import com.expensetracker.ui.components.FormSlider
+import com.expensetracker.ui.components.OptionPickerDialog
+import com.expensetracker.ui.components.PickerField
 import com.expensetracker.ui.components.StyledAlertDialog
 import com.expensetracker.ui.theme.*
 
@@ -60,11 +66,13 @@ fun BudgetsScreen(
             FloatingActionButton(
                 onClick = { viewModel.showAddDialog() },
                 modifier = Modifier.padding(bottom = bottomContentPadding),
-                containerColor = MaterialTheme.colorScheme.tertiary.copy(alpha = FabContainerAlpha),
-                // contentColorFor() resolves by exact colour equality, so the
-                // alpha above drops it out of the scheme and M3 would fall back
-                // to Color.LightGray — pin onTertiary explicitly instead.
-                contentColor = MaterialTheme.colorScheme.onTertiary
+                // Solid, and the same dark green as the Home and Transactions
+                // buttons. This one was the last holdout for the translucent
+                // fill, which at 0.6 over a light surface turned the gold into a
+                // pale wash with a near-black glyph on it — the weakest-looking
+                // button in the app, and the only one of the three not matching.
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Add Budget")
             }
@@ -310,30 +318,18 @@ private fun BudgetCard(
     }
 
     if (showDeleteConfirm) {
-        StyledAlertDialog(
-            onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("Delete Budget", fontWeight = FontWeight.SemiBold) },
-            text = { Text("Are you sure you want to delete this budget?") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        onDelete()
-                        showDeleteConfirm = false
-                    }
-                ) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
-                }
+        ConfirmDeleteDialog(
+            title = "Delete this budget?",
+            detail = "${status.budget.category} · ${status.budget.period.name.lowercase().replaceFirstChar { it.uppercase() }}",
+            onConfirm = {
+                onDelete()
+                showDeleteConfirm = false
             },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) {
-                    Text("Cancel")
-                }
-            }
+            onDismiss = { showDeleteConfirm = false }
         )
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AddBudgetDialog(
     categories: List<String>,
@@ -345,120 +341,87 @@ private fun AddBudgetDialog(
     var limit by remember { mutableStateOf("") }
     var period by remember { mutableStateOf(BudgetPeriod.MONTHLY) }
     var threshold by remember { mutableFloatStateOf(0.8f) }
-    var categoryExpanded by remember { mutableStateOf(false) }
-    var periodExpanded by remember { mutableStateOf(false) }
+    var picker by remember { mutableStateOf<BudgetPicker?>(null) }
 
-    StyledAlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Add Budget", fontWeight = FontWeight.SemiBold) },
-        text = {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                ExposedDropdownMenuBox(
-                    expanded = categoryExpanded,
-                    onExpandedChange = { categoryExpanded = !categoryExpanded }
-                ) {
-                    OutlinedTextField(
-                        value = selectedCategory,
-                        onValueChange = {},
-                        readOnly = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor(    ),
-                        label = { Text("Category") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryExpanded) }
-                    )
-                    ExposedDropdownMenu(
-                        expanded = categoryExpanded,
-                        onDismissRequest = { categoryExpanded = false }
-                    ) {
-                        categories.forEach { category ->
-                            DropdownMenuItem(
-                                text = { Text(category) },
-                                onClick = {
-                                    selectedCategory = category
-                                    categoryExpanded = false
-                                }
-                            )
-                        }
-                    }
-                }
+    val limitValue = limit.toDoubleOrNull()
+    val limitIsValid = limitValue != null && limitValue > 0 && limitValue < 1_000_000_000
 
-                OutlinedTextField(
-                    value = limit,
-                    onValueChange = { limit = it.filter { c -> c.isDigit() || c == '.' } },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Budget Limit") },
-                    prefix = { Text(CurrencyService.getSymbol(currency)) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    singleLine = true,
-                    shape = RoundedCornerShape(8.dp)
-                )
-
-                ExposedDropdownMenuBox(
-                    expanded = periodExpanded,
-                    onExpandedChange = { periodExpanded = !periodExpanded }
-                ) {
-                    OutlinedTextField(
-                        value = period.name.lowercase().replaceFirstChar { it.uppercase() },
-                        onValueChange = {},
-                        readOnly = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor(),
-                        label = { Text("Period") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = periodExpanded) },
-                        shape = RoundedCornerShape(8.dp)
-                    )
-                    ExposedDropdownMenu(
-                        expanded = periodExpanded,
-                        onDismissRequest = { periodExpanded = false }
-                    ) {
-                        BudgetPeriod.entries.forEach { p ->
-                            DropdownMenuItem(
-                                text = { Text(p.name.lowercase().replaceFirstChar { it.uppercase() }) },
-                                onClick = {
-                                    period = p
-                                    periodExpanded = false
-                                }
-                            )
-                        }
-                    }
-                }
-
-                Column {
-                    Text(
-                        text = "Alert at ${(threshold * 100).toInt()}%",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Slider(
-                        value = threshold,
-                        onValueChange = { threshold = it },
-                        valueRange = 0.5f..0.95f,
-                        steps = 8
-                    )
-                }
+    FormDialog(
+        title = "Add Budget",
+        confirmLabel = "Add",
+        confirmEnabled = selectedCategory.isNotEmpty() && limitIsValid,
+        onConfirm = {
+            if (selectedCategory.isNotEmpty() && limitIsValid) {
+                onConfirm(selectedCategory, limitValue ?: 0.0, period, threshold)
             }
         },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    val limitValue = limit.toDoubleOrNull() ?: 0.0
-                    if (selectedCategory.isNotEmpty() && limitValue > 0 && limitValue < 1_000_000_000) {
-                        onConfirm(selectedCategory, limitValue, period, threshold)
-                    }
-                },
-                enabled = selectedCategory.isNotEmpty() && limit.toDoubleOrNull()?.let { it > 0 && it < 1_000_000_000 } == true
-            ) {
-                Text("Add", color = MaterialTheme.colorScheme.primary)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        }
-    )
+        onDismiss = onDismiss
+    ) {
+        PickerField(
+            label = "Category",
+            value = selectedCategory,
+            placeholder = "Choose a category",
+            onClick = { picker = BudgetPicker.Category }
+        )
+
+        FormField(
+            label = "Budget Limit",
+            value = limit,
+            onValueChange = { limit = it.filter { c -> c.isDigit() || c == '.' } },
+            placeholder = "0",
+            prefix = CurrencyService.getSymbol(currency),
+            keyboardType = KeyboardType.Decimal
+        )
+
+        PickerField(
+            label = "Period",
+            value = period.displayName(),
+            placeholder = "Choose a period",
+            onClick = { picker = BudgetPicker.Period }
+        )
+
+        FormSlider(
+            label = "Alert at ${(threshold * 100).toInt()}%",
+            value = threshold,
+            onValueChange = { threshold = it },
+            valueRange = 0.5f..0.95f,
+            steps = 8
+        )
+    }
+
+    when (picker) {
+        BudgetPicker.Category -> OptionPickerDialog(
+            title = "Category",
+            options = categories,
+            selected = selectedCategory,
+            label = { it },
+            onSelect = {
+                selectedCategory = it
+                picker = null
+            },
+            onDismiss = { picker = null },
+            leadingIcon = { getCategoryIcon(it) },
+            leadingTint = { getCategoryColor(it) }
+        )
+
+        BudgetPicker.Period -> OptionPickerDialog(
+            title = "Period",
+            options = BudgetPeriod.entries,
+            selected = period,
+            label = { it.displayName() },
+            onSelect = {
+                period = it
+                picker = null
+            },
+            onDismiss = { picker = null }
+        )
+
+        null -> Unit
+    }
 }
+
+/** Which of the Add Budget fields is currently asking to be changed. */
+private enum class BudgetPicker { Category, Period }
+
+private fun BudgetPeriod.displayName(): String =
+    name.lowercase().replaceFirstChar { it.uppercase() }
