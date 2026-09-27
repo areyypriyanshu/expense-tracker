@@ -128,3 +128,15 @@ dependencies {
 
     testImplementation("junit:junit:4.13.2")
 }
+
+// Tells Room's annotation processor where to write the schema JSON for the
+// current @Database version. Without it the processor warns and exports
+// nothing, and the schemas are the only record of how the database evolved —
+// they are what migration tests are written against, and what tells you
+// precisely which columns changed when you write the next migration.
+//
+// The output is committed (see .gitignore), not ignored: a schema that is not
+// in version control cannot be diffed against the one before it.
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
