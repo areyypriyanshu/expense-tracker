@@ -78,6 +78,10 @@ secrets.properties
 signing.properties
 *.env
 .env.*
+# The example file is documentation: it lists which variables the project reads
+# and must stay committed, or a fresh clone has no way to learn them. Only the
+# literal `.env.example`, not any other file matching `.env.*`.
+!.env.example
 
 # Captures and logs
 captures/

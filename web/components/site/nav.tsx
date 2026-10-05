@@ -16,6 +16,7 @@ export function Nav() {
     { href: "#privacy", label: "Privacy" },
     { href: "#install", label: "Install" },
     { href: "/releases", label: "Releases" },
+    { href: "/feedback", label: "Feedback" },
   ];
 
   return (
@@ -152,6 +153,11 @@ export function Footer() {
             <li>
               <Link href="/privacy" className="text-ink-muted transition-colors hover:text-ink">
                 Privacy
+              </Link>
+            </li>
+            <li>
+              <Link href="/feedback" className="text-ink-muted transition-colors hover:text-ink">
+                Feedback
               </Link>
             </li>
           </ul>

@@ -144,6 +144,50 @@ pnpm typecheck
 pnpm build
 ```
 
+## Feedback form
+
+`/feedback` sends a message to an inbox. Two environment variables switch it on:
+
+```
+RESEND_API_KEY=re_...          # from resend.com/api-keys
+FEEDBACK_TO_EMAIL=you@...      # where it is delivered
+```
+
+`FEEDBACK_TO_EMAIL` **must be the address the Resend account was created with**.
+The shared `onboarding@resend.dev` sender domain can only deliver to that one
+address, and Resend answers 403 for anything else. To send from your own domain
+instead, verify it in Resend and set `FEEDBACK_FROM_EMAIL`.
+
+Without both variables the page renders a "not switched on yet" state and
+`/api/feedback` answers 503, so nothing fails silently on submit.
+
+The free tier is 3,000 emails a month and 100 a day. Both sent and received
+count, and the daily quota resets at midnight UTC rather than rolling.
+
+### Why not a hosted form service
+
+Web3Forms was the original choice and does not work here. Its free tier does
+not include file attachments, which their documentation states outright ("this
+is a PRO feature"), and its API rejects server-side calls with a 403. That
+second point is the important one: with the request made from the browser there
+is nowhere to inspect an upload before it is forwarded, so a file renamed to
+`.png` would pass through unchecked.
+
+The route reads every upload's actual bytes before anything leaves the site:
+
+| Rule | Why |
+| --- | --- |
+| PNG and JPEG only | The two formats a screenshot or a photo actually arrives in. SVG is refused because it is a document, not a picture. |
+| Magic bytes checked | The name and the MIME type are both supplied by the sender and agree with each other by construction. The signature is what cannot be faked without producing a real file of that format. It proves the upload begins with an image header; it does not decode the rest. |
+| 1.4 MB per file, 3 files, 3.6 MB total | The whole-request cap is the one that matters: a serverless function accepts about 4.5 MB, so three files at a larger per-file cap would be refused by the platform with a bare 413 before any code here ran. |
+| Escaped into the email body | A message is written by a stranger and lands in an inbox. Unescaped, it is a phishing link with the site's name on it. |
+| No control characters in the name, category or email | The name and the category go into the mail subject. A value carrying a line break can close the header and append another, so `category` is checked against the fixed list and CRLF is refused in all three. |
+| 5 messages per 10 minutes | Bounds casual abuse. Keyed on the last `x-forwarded-for` entry, which a proxy appended and the client did not choose. Bounded per instance rather than globally, and hard-capped in size, since the key comes from a header. |
+| Honeypot field | A hidden input a bot fills in. Answering with success and dropping the message teaches it nothing. |
+
+Set `FEEDBACK_ENDPOINT` to point the route at a local stand-in instead of the
+real API, which is how the payload above was verified without sending anything.
+
 ## Commands
 
 | Command | What it does |
