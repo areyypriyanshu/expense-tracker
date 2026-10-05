@@ -16,6 +16,7 @@
     "test:watch": "vitest",
     "sync": "node scripts/sync-releases.mjs",
     "capture": "node scripts/capture-screens.mjs",
+    "seed": "node scripts/seed-demo-data.mjs",
     "publish": "node scripts/publish.mjs"
   },
   "dependencies": {

@@ -30,7 +30,7 @@ const screens = [
   },
   {
     src: "/screens/06-receipt.png",
-    alt: "Receipt scanning screen with the camera viewfinder and the extracted total.",
+    alt: "The Add Expense screen, with the Scan receipt button that reads a total off a photographed bill.",
   },
   {
     src: "/screens/07-assistant.png",

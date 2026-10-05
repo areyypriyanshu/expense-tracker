@@ -37,7 +37,11 @@ const APK = join(
 );
 const OUT_DIR = join(webRoot, "public/screens");
 
-const adb = (args, options = {}) => exec(ADB, args, { timeout: 120_000, ...options });
+// `screencap` streams a whole PNG through stdout, and `uiautomator dump` returns
+// a large XML document for a dense screen. Node's default 1 MB buffer is not
+// enough for either once the app holds real data.
+const adb = (args, options = {}) =>
+  exec(ADB, args, { timeout: 120_000, maxBuffer: 64 * 1024 * 1024, ...options });
 const shell = (command) => adb(["shell", command]);
 
 /**
@@ -95,17 +99,18 @@ const screens = [
     steps: [{ kind: "nav", index: 4 }, { kind: "text", contains: "Finance Assistant Chatbot" }],
   },
   {
-    file: "07-receipt.png",
+    file: "06-receipt.png",
     label: "add expense with scan receipt",
     steps: [
       { kind: "nav", index: 1 },
-      // The add-expense FAB carries no content description in the current
-      // build, so it is not in the accessibility tree and cannot be found by
-      // text. Its position is fixed by the layout: bottom-end, above the
-      // navigation bar. This is the one tap in the script that is a
-      // coordinate, and the comment is here so the next person knows why and
-      // what to change if the FAB moves or gains a label.
-      { kind: "tap", x: 960, y: 2050 },
+      // No scroll step here. The screen hides the add button once the list
+      // moves (`visible = !isScrolled` in TransactionsScreen.kt), so scrolling
+      // to the top is what removes it. Freshly opened, the list is already at
+      // the top and the button is on screen.
+      //
+      // Found by content description, which is how it is labelled for screen
+      // readers, so the tap follows the button rather than a fixed pixel.
+      { kind: "desc", contains: "Add Transaction" },
       { kind: "text", contains: "Scan receipt" },
     ],
   },
@@ -156,6 +161,51 @@ async function size() {
  * source of truth a screen reader uses, so it cannot drift from what a person
  * would actually tap.
  */
+/**
+ * Asserts the app is the focused window.
+ *
+ * The failure this guards against is quiet: a tap that the launcher swallows
+ * leaves the capture writing a screenshot of whatever is on screen, so every
+ * file is produced and they all show the same thing. Checking the focus before
+ * navigating turns that into an error naming the real problem.
+ */
+async function requireAppForeground(packageName) {
+  const { stdout } = await shell("dumpsys window | grep mCurrentFocus");
+  if (!stdout.includes(packageName)) {
+    throw new Error(
+      `The app is not in the foreground (focus is: ${stdout.trim()}). ` +
+        `A tap is probably being read as a home gesture. ` +
+        `Run the script with gesture navigation disabled.`,
+    );
+  }
+}
+
+/**
+ * Dismisses the notification and SMS prompts shown on first launch.
+ *
+ * Both are skippable and both are photographed instead of the app otherwise.
+ * Backing out is enough: neither prompt blocks the dashboard.
+ */
+async function dismissFirstLaunchPrompts() {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const { stdout } = await shell("dumpsys window | grep mCurrentFocus");
+    if (!stdout.includes("com.expensetracker")) break;
+
+    await shell("uiautomator dump /sdcard/ui.xml >/dev/null 2>&1");
+    const { stdout: xml } = await shell("cat /sdcard/ui.xml");
+
+    const isPrompt =
+      xml.includes("Turn on notifications") ||
+      xml.includes("SMS Permission Required") ||
+      xml.includes("UPI Sync");
+
+    if (!isPrompt) break;
+
+    await shell("input keyevent KEYCODE_BACK");
+    await new Promise((resolve) => setTimeout(resolve, 2500));
+  }
+}
+
 async function findNavRowY(device) {
   const labels = ["Home", "Transactions", "Analytics", "Budgets", "Settings"];
   const { stdout } = await shell("uiautomator dump /sdcard/ui.xml >/dev/null 2>&1 && cat /sdcard/ui.xml");
@@ -181,6 +231,28 @@ async function findNavRowY(device) {
   }
 
   return Math.round(centres.reduce((sum, value) => sum + value, 0) / centres.length);
+}
+
+/**
+ * Forces three-button navigation.
+ *
+ * With gesture navigation enabled, a tap near the bottom of the screen is
+ * read as a swipe towards home and the app goes to the launcher instead of
+ * receiving it. That made the bottom bar untappable and every capture came
+ * out as the same screen. Three-button navigation puts a real button strip
+ * there, so the same tap reaches the app.
+ */
+async function forceThreeButtonNavigation() {
+  const { stdout } = await shell(
+    "cmd overlay list android | grep -E 'navbar.(gestural|threebutton)'",
+  );
+
+  if (!stdout.includes("gestural")) return;
+
+  console.log("Switching the emulator to three-button navigation for the capture...");
+  await shell("cmd overlay enable com.android.internal.systemui.navbar.threebutton");
+  await shell("cmd overlay disable com.android.internal.systemui.navbar.gestural");
+  await new Promise((resolve) => setTimeout(resolve, 4000));
 }
 
 async function isBooted() {
@@ -211,8 +283,7 @@ async function capture(file) {
 }
 
 /**
- * Dumps the view hierarchy and finds the centre of the node whose text
- * contains `needle`.
+ * Finds a node by visible text.
  *
  * Tapping a label rather than a guessed pixel is what makes this script
  * survive a layout change: if "Recurring" moves, the tap follows it.
@@ -220,13 +291,28 @@ async function capture(file) {
  * rather than silently capturing the wrong screen.
  */
 async function findByText(needle) {
+  return findNode((text) => text.includes(needle), "text");
+}
+
+/**
+ * Finds a node by content description.
+ *
+ * Several controls in the app have no visible text at all, including the add
+ * button, which is icon-only and labelled for screen readers instead. Those
+ * cannot be found by text and need this.
+ */
+async function findByDescription(needle) {
+  return findNode((text) => text.includes(needle), "content-desc");
+}
+
+async function findNode(matches, attribute) {
   await shell("uiautomator dump /sdcard/ui.xml >/dev/null 2>&1");
   const { stdout } = await shell("cat /sdcard/ui.xml");
 
   const nodes = stdout.match(/<node[^>]*>/g) ?? [];
   for (const node of nodes) {
-    const text = /text="([^"]*)"/.exec(node)?.[1] ?? "";
-    if (!text.includes(needle)) continue;
+    const value = new RegExp(`${attribute}="([^"]*)"`).exec(node)?.[1] ?? "";
+    if (!matches(value)) continue;
 
     const bounds = /bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/.exec(node);
     if (!bounds) continue;
@@ -236,6 +322,24 @@ async function findByText(needle) {
   }
 
   return null;
+}
+
+/**
+ * Scrolls the current list back to the top.
+ *
+ * Several screens hide their floating button the moment the list moves, so a
+ * screen reached from a scrolled position has no button to find. Two swipes in
+ * the scroll direction bring it back without overshooting into another screen
+ * the way a single long swipe can.
+ */
+async function scrollToTop(device) {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await shell(
+      `input swipe ${Math.round(device.width / 2)} ${Math.round(device.height * 0.8)} ` +
+        `${Math.round(device.width / 2)} ${Math.round(device.height * 0.25)} 250`,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+  }
 }
 
 async function main() {
@@ -266,17 +370,18 @@ async function main() {
 
   await adb(["install", "-r", "-t", APK]);
   const packageName = "com.expensetracker";
+
+  // Done before the app is launched, because the navigation bar changes where
+  // the app's own bottom row sits, and the row is measured below.
+  await forceThreeButtonNavigation();
+
   await shell(`am force-stop ${packageName}`);
-  await shell(`monkey -p ${packageName} -c android.intent.category.LAUNCHER 1`);
+  await shell(`am start -n ${packageName}/.MainActivity`);
 
   // Let the first frame land and any first-launch prompts settle.
-  await new Promise((resolve) => setTimeout(resolve, 6000));
-
-  // The app asks for notifications and SMS on first launch. Both are skippable,
-  // and dismissing them here keeps the captures showing real content rather
-  // than a permission dialog.
-  await shell(`input keyevent KEYCODE_BACK`);
-  await new Promise((resolve) => setTimeout(resolve, 1200));
+  await new Promise((resolve) => setTimeout(resolve, 7000));
+  await dismissFirstLaunchPrompts();
+  await requireAppForeground(packageName);
 
   // Measured on the running app, so the row is found even on a device with an
   // unusual inset or a different navigation mode.
@@ -286,10 +391,25 @@ async function main() {
   const failures = [];
 
   for (const screen of screens) {
-    // Always return to a known state before navigating.
+    // Always return to a known state before navigating. The wait is long
+    // because the first frame after a cold start includes opening the Room
+    // database and running the first-launch checks; tapping the nav bar
+    // before that finishes lands on the wrong screen and the next step fails
+    // with a label it cannot find.
     await shell(`am force-stop ${packageName}`);
-    await shell(`monkey -p ${packageName} -c android.intent.category.LAUNCHER 1`);
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    await shell(`am start -n ${packageName}/.MainActivity`);
+    await new Promise((resolve) => setTimeout(resolve, 6000));
+
+    // Dismiss the first-launch prompts if they appear. They only show once
+    // per install, but a capture that hits them photographs a dialog instead
+    // of the app.
+    await dismissFirstLaunchPrompts();
+
+    // Prove the app is in the foreground before navigating. A tap that reaches
+    // the launcher instead is silent: the capture succeeds and every file
+    // comes out showing the same screen, which is exactly what happened before
+    // this check existed.
+    await requireAppForeground(packageName);
 
     for (const step of screen.steps) {
       if (step.kind === "nav") {
@@ -297,6 +417,17 @@ async function main() {
         // `weight(1f)` layout, tapped on the row's measured centre.
         const x = Math.round((device.width / 5) * (step.index + 0.5));
         await shell(`input tap ${x} ${device.navRowY}`);
+      } else if (step.kind === "scrollTop") {
+        await scrollToTop(device);
+      } else if (step.kind === "desc") {
+        const target = await findByDescription(step.contains);
+        if (!target) {
+          throw new Error(
+            `Could not find a control described as "${step.contains}". ` +
+              `The screen may have hidden it, or it may have been renamed.`,
+          );
+        }
+        await shell(`input tap ${target.x} ${target.y}`);
       } else if (step.kind === "tap") {
         await shell(`input tap ${step.x} ${step.y}`);
       } else {

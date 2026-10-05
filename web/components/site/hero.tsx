@@ -208,7 +208,7 @@ function ReceiptShot() {
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/screens/06-receipt.png"
-        alt="A receipt being scanned, with the total extracted from the paper."
+        alt="The Add Expense screen, with the Scan receipt button that reads a total off a photographed bill."
         className="h-28 w-full object-cover object-top"
         loading="lazy"
       />

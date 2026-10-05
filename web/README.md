@@ -99,15 +99,32 @@ installs cannot be updated.
 ## Refreshing the screenshots
 
 The screenshots on the site are real captures from the emulator, not mockups.
+Two commands are needed, in order.
 
 ```bash
-# Start an emulator first, then:
-cd web && pnpm capture
+# Start an emulator first:
+~/Library/Android/sdk/emulator/emulator -avd Pixel_10 -no-snapshot -no-boot-anim &
+
+cd web
+pnpm seed    # loads a month of realistic transactions into the emulator
+pnpm capture # captures one PNG per screen
 ```
 
-The script installs the debug APK, drives the app with `adb`, and writes a PNG
-per screen into `public/screens/`. It exits non-zero if any screen fails, so a
-broken capture cannot pass silently. Commit the result.
+`pnpm seed` is not optional. The app seeds its categories but no transactions,
+so without it every screen shows a zero total and empty charts, which is what
+made the first version of this site look broken. It writes a month of data dated
+relative to today, so the dashboard, the analytics charts and the budget
+progress all have something real to show and stay correct when the month rolls
+over.
+
+`pnpm capture` installs the debug APK, drives the app with `adb`, and writes a
+PNG per screen into `public/screens/`. It exits non-zero if any screen fails, so
+a broken capture cannot pass silently. Commit the result.
+
+Both scripts switch the emulator to three-button navigation for the run. With
+gesture navigation on, a tap near the bottom of the screen is read as a swipe
+towards home, which makes the app's own navigation bar untappable and silently
+produces eight identical screenshots.
 
 ## Local development
 
@@ -115,7 +132,7 @@ broken capture cannot pass silently. Commit the result.
 cd web
 pnpm install
 pnpm dev          # http://localhost:3000
-pnpm test         # 39 unit tests, no network needed
+pnpm test         # 43 unit tests, no network needed
 pnpm lint
 pnpm typecheck
 pnpm build
@@ -131,5 +148,6 @@ pnpm build
 | `pnpm lint` | ESLint |
 | `pnpm typecheck` | TypeScript, no emit |
 | `pnpm sync` | Refresh the release snapshot from GitHub |
+| `pnpm seed` | Load demo transactions into the emulator |
 | `pnpm capture` | Re-capture screenshots from the emulator |
 | `pnpm publish` | Build, tag, upload and sync a new release |
