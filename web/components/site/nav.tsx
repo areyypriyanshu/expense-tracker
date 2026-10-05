@@ -43,6 +43,13 @@ export function Nav() {
       >
         <Link
           href="/"
+          onClick={(e) => {
+            close();
+            if (window.location.pathname === "/") {
+              e.preventDefault();
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }
+          }}
           className="flex items-center gap-2.5 text-[15px] font-medium text-ink transition-opacity duration-200 hover:opacity-70"
         >
           <Mark />
