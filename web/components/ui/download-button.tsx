@@ -41,7 +41,8 @@ export function DownloadButton({
   return (
     <a
       href={href}
-      download
+      target="_blank"
+      rel="noopener noreferrer"
       onPointerDown={() => setPressed(true)}
       onPointerUp={() => setPressed(false)}
       onPointerLeave={() => setPressed(false)}
