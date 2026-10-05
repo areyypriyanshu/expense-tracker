@@ -41,7 +41,11 @@ const OUT_DIR = join(webRoot, "public/screens");
 // a large XML document for a dense screen. Node's default 1 MB buffer is not
 // enough for either once the app holds real data.
 const adb = (args, options = {}) =>
-  exec(ADB, args, { timeout: 120_000, maxBuffer: 64 * 1024 * 1024, ...options });
+  exec(ADB, ["-s", DEVICE, ...args], {
+    timeout: 120_000,
+    maxBuffer: 64 * 1024 * 1024,
+    ...options,
+  });
 const shell = (command) => adb(["shell", command]);
 
 /**
@@ -447,7 +451,7 @@ async function main() {
 
   const device = await size().catch(() => null);
   if (!device) {
-    const { stdout } = await exec(ADB, ["devices"]).catch(() => ({ stdout: "" }));
+    const { stdout } = await exec(ADB, ["devices", "-s", DEVICE]).catch(() => ({ stdout: "" }));
     if (!stdout.includes("device")) {
       console.error(`No emulator is running for AVD "${AVD}".`);
       console.error("Start it with:");

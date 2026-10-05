@@ -201,15 +201,22 @@ function UpiTrace() {
   );
 }
 
-/** A cropped, real capture rather than an illustration of one. */
+/**
+ * A real capture rather than an illustration of one.
+ *
+ * Rendered full-height, not cropped. A fixed-height crop on a tall image
+ * hides the bottom of the screen, which is where the scan button the caption
+ * points at actually is. The card is a portrait, so the height is driven by
+ * the aspect ratio, with a sensible cap so it does not dominate the cell.
+ */
 function ReceiptShot() {
   return (
-    <div className="mt-6 overflow-hidden rounded-lg border border-hairline-soft">
+    <div className="mt-6 max-w-[220px]">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/screens/06-receipt.png"
         alt="The Add Expense screen, with the Scan receipt button that reads a total off a photographed bill."
-        className="h-28 w-full object-cover object-top"
+        className="w-full rounded-lg border border-hairline-soft"
         loading="lazy"
       />
     </div>
