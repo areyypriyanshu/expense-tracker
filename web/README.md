@@ -126,6 +126,12 @@ gesture navigation on, a tap near the bottom of the screen is read as a swipe
 towards home, which makes the app's own navigation bar untappable and silently
 produces eight identical screenshots.
 
+`pnpm capture` also sets the app's base currency to INR before it starts. The
+app falls back to the device locale when no base currency has been chosen, and
+an emulator is normally en-US, so a fresh install would otherwise render every
+figure in dollars. The seeded transactions are all denominated in INR, so a
+dollar total is also a conversion nothing on the page can account for.
+
 ## Local development
 
 ```bash

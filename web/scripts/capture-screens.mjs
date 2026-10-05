@@ -187,27 +187,39 @@ async function requireAppForeground(packageName) {
  * Backing out is enough: neither prompt blocks the dashboard.
  */
 async function dismissFirstLaunchPrompts() {
-  for (let attempt = 0; attempt < 3; attempt += 1) {
+  for (let attempt = 0; attempt < 4; attempt += 1) {
     const { stdout } = await shell("dumpsys window | grep mCurrentFocus");
     if (!stdout.includes("com.expensetracker")) break;
 
     await shell("uiautomator dump /sdcard/ui.xml >/dev/null 2>&1");
     const { stdout: xml } = await shell("cat /sdcard/ui.xml");
 
-    const isPrompt =
-      xml.includes("Turn on notifications") ||
-      xml.includes("SMS Permission Required") ||
-      xml.includes("UPI Sync");
+    // Each of these is a one-time screen shown on a fresh install: the
+    // notification rationale, the SMS rationale, and the UPI setup page that
+    // links to the latter. Any of them photographed instead of the app ruins
+    // the capture, and they appear again after `pm clear`.
+    const isPrompt = [
+      "Turn on notifications",
+      "SMS Permission Required",
+      "Enable UPI Auto-Sync",
+      "UPI Sync",
+    ].some((marker) => xml.includes(marker));
 
     if (!isPrompt) break;
 
-    await shell("input keyevent KEYCODE_BACK");
+    // "Not Now" where one is offered, otherwise a back press. Both skippable.
+    const skip = await findByText("Not Now");
+    if (skip) {
+      await shell(`input tap ${skip.x} ${skip.y}`);
+    } else {
+      await shell("input keyevent KEYCODE_BACK");
+    }
     await new Promise((resolve) => setTimeout(resolve, 2500));
   }
 }
 
 async function findNavRowY(device) {
-  const labels = ["Home", "Transactions", "Analytics", "Budgets", "Settings"];
+  const labels = NAV_LABELS;
   const { stdout } = await shell("uiautomator dump /sdcard/ui.xml >/dev/null 2>&1 && cat /sdcard/ui.xml");
 
   const centres = [];
@@ -342,6 +354,94 @@ async function scrollToTop(device) {
   }
 }
 
+/**
+ * Switches the app's base currency to INR if it is not already.
+ *
+ * The app reads a stored preference and falls back to the device locale when
+ * none is set (`getSystemDefaultCurrency` in PreferencesManager.kt). An
+ * emulator is normally en-US, so a fresh install shows dollars. The seeded
+ * transactions are all in INR, so a dollar total is also a currency
+ * conversion the reader cannot verify.
+ *
+ * Driven through the UI rather than by editing the DataStore file, because
+ * that file is protobuf and writing it by hand is not something worth
+ * maintaining.
+ */
+async function ensureBaseCurrency() {
+  // Located by label rather than by arithmetic. The five cells are equally
+  // weighted, so `width / 5 * 4.5` puts the tap at x=972, which is the very
+  // edge of the Settings cell and outside the label itself. Using the
+  // measured bounds of the "Settings" text puts the tap in the middle of the
+  // control.
+  let onSettings = false;
+
+  for (let attempt = 0; attempt < 3 && !onSettings; attempt += 1) {
+    const settings = await findByText("Settings");
+    if (!settings) {
+      throw new Error("Could not find the Settings tab in the bottom bar.");
+    }
+    await shell(`input tap ${settings.x} ${settings.y}`);
+    await new Promise((resolve) => setTimeout(resolve, 3500));
+    onSettings = Boolean(await findByText("Base Currency"));
+  }
+
+  if (!onSettings) {
+    throw new Error("Could not open the Settings screen to set the base currency.");
+  }
+
+  const current = await readBaseCurrency();
+  if (current === "INR") {
+    console.log("Base currency is already INR.");
+    await shell(`input keyevent KEYCODE_BACK`);
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    return;
+  }
+
+  console.log(`Base currency reads ${current || "unset"}. Switching to INR...`);
+
+  const label = await findByText("Base Currency");
+  if (!label) {
+    throw new Error("Could not find the Base Currency row on the Settings screen.");
+  }
+  await shell(`input tap ${label.x} ${label.y}`);
+  await new Promise((resolve) => setTimeout(resolve, 2500));
+
+  const inr = await findByText("Indian Rupee");
+  if (!inr) {
+    throw new Error("Could not find INR in the currency picker.");
+  }
+  await shell(`input tap ${inr.x} ${inr.y}`);
+  await new Promise((resolve) => setTimeout(resolve, 3000));
+
+  const after = await readBaseCurrency();
+  if (after !== "INR") {
+    throw new Error(`Could not set the base currency to INR. It reads ${after || "unset"}.`);
+  }
+  console.log("Base currency is now INR.");
+
+  await shell(`input keyevent KEYCODE_BACK`);
+  await new Promise((resolve) => setTimeout(resolve, 1500));
+}
+
+/** Reads the "Base Currency: XXX" label from the Settings screen. */
+async function readBaseCurrency() {
+  await shell("uiautomator dump /sdcard/ui.xml >/dev/null 2>&1");
+  const { stdout } = await shell("cat /sdcard/ui.xml");
+  return /text="Base Currency: ([A-Z]{3})"/.exec(stdout)?.[1] ?? "";
+}
+
+/**
+ * The five bottom-bar destinations, in order.
+ *
+ * Matches `Screen.bottomNavItems` in Navigation.kt. Steps refer to these by
+ * index, and the tap is placed on the label itself rather than on a cell
+ * centre computed from the screen width.
+ */
+const NAV_LABELS = ["Home", "Transactions", "Analytics", "Budgets", "Settings"];
+
+/** Screen metrics, filled in once the device is known. */
+const deviceState = { width: 0, height: 0, navRowY: 0, densityScale: 1, systemInsetBottom: 0 };
+
 async function main() {
   await mkdir(OUT_DIR, { recursive: true });
 
@@ -356,6 +456,10 @@ async function main() {
     }
     throw new Error("An emulator is attached but did not report a screen size.");
   }
+
+  // Shared with the helpers above, which need the screen width to place a tap
+  // and the measured nav row to reach Settings.
+  Object.assign(deviceState, device);
 
   const booted = await isBooted();
   if (!booted) {
@@ -383,10 +487,17 @@ async function main() {
   await dismissFirstLaunchPrompts();
   await requireAppForeground(packageName);
 
-  // Measured on the running app, so the row is found even on a device with an
-  // unusual inset or a different navigation mode.
+  // The app falls back to the device locale when no base currency has been
+  // chosen, and an emulator is usually en-US. Every figure then renders in
+  // dollars, which is wrong for this app and looks wrong on the site. Set it
+  // once here so every capture is in rupees regardless of the AVD's locale.
+  //
+  // Runs after the nav row is measured, because reaching Settings means
+  // tapping the bottom bar.
   device.navRowY = await findNavRowY(device);
   console.log(`Bottom navigation row is centred at y = ${device.navRowY}.`);
+
+  await ensureBaseCurrency();
 
   const failures = [];
 
@@ -413,10 +524,17 @@ async function main() {
 
     for (const step of screen.steps) {
       if (step.kind === "nav") {
-        // Five equally weighted cells across the full width, matching the
-        // `weight(1f)` layout, tapped on the row's measured centre.
-        const x = Math.round((device.width / 5) * (step.index + 0.5));
-        await shell(`input tap ${x} ${device.navRowY}`);
+        // Tapped by its own label, not by arithmetic on the screen width. The
+        // five cells are equally weighted, so width/5*(index+0.5) looks right
+        // and is not: it lands on the outer edge of the cell rather than the
+        // middle of the control, which is far enough out that the tap misses.
+        const tab = await findByText(NAV_LABELS[step.index]);
+        if (!tab) {
+          throw new Error(
+            `Could not find the "${NAV_LABELS[step.index]}" tab in the bottom bar.`,
+          );
+        }
+        await shell(`input tap ${tab.x} ${tab.y}`);
       } else if (step.kind === "scrollTop") {
         await scrollToTop(device);
       } else if (step.kind === "desc") {
