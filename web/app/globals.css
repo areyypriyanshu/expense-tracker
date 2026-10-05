@@ -1,0 +1,145 @@
+@import "tailwindcss";
+
+/**
+ * Design tokens.
+ *
+ * Every colour here is copied from the app's own theme, not chosen for this
+ * site. `Theme.kt` defines these as the app's palette and `UI-SPEC.md` states
+ * the contract in words: calm warm off-white surfaces, deep green primary,
+ * muted blue secondary, soft gold accent, compact 8dp radii. The site is the
+ * same product seen from further away, so it wears the same colours.
+ *
+ * The one rule: deep green is the only interactive accent on the entire site.
+ * Gold appears twice, on the verified-checksum tick and on a single hairline
+ * in the hero. Nothing else is allowed a colour of its own.
+ */
+@theme {
+  --color-bone: #faf8f2;
+  --color-surface: #fffcf7;
+  --color-wash: #f1ece1;
+  --color-hairline: #e1dace;
+  --color-hairline-soft: #ece6da;
+  --color-ink: #1d211f;
+  --color-ink-muted: #69736e;
+  --color-green: #0f3d34;
+  --color-green-hover: #155347;
+  --color-green-wash: #dcebe4;
+  --color-gold: #dfaf3f;
+  --color-gold-ink: #2a2210;
+  --color-positive: #2f8f6b;
+  --color-negative: #c75151;
+
+  /* One radius scale, matching the app's 8dp contract. Only status dots and
+     icons are circular. */
+  --radius-DEFAULT: 8px;
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+/**
+ * The site is light only, by design, because the app's identity is its warm
+ * bone surfaces. Declaring it stops a browser in dark mode from inverting
+ * form controls and scrollbars under a page that never went dark.
+ */
+:root {
+  color-scheme: light;
+}
+
+html {
+  scroll-behavior: smooth;
+  /* The sticky nav is 68px tall, so anchor targets need to clear it. */
+  scroll-padding-top: 5rem;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background-color: var(--color-bone);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  /* System stack first so the page still renders correctly if the webfont
+     fails to load. */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Focus rings use the brand green at full strength. A visible ring on every
+   interactive element, not only on keyboard navigation. */
+:focus-visible {
+  outline: 2px solid var(--color-green);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+::selection {
+  background-color: var(--color-green);
+  color: var(--color-bone);
+}
+
+/**
+ * The horizontal screen strip. Native scroll-snap does the work, so there is no
+ * JS scroll listener anywhere on the page and the strip stays keyboard
+ * reachable.
+ */
+.strip-scroll {
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.strip-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.strip-scroll > * {
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+}
+
+/**
+ * The app's own easing, copied from `MotionTokens.CalmEasing` so a CSS
+ * transition and a Motion animation on the same screen settle identically.
+ */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* Reserve space for the first hero screenshot before it decodes. Without this
+   the hero shifts as images load, which is a CLS hit. */
+.hero-frame {
+  aspect-ratio: 9 / 19.5;
+}
+
+/**
+ * The user's request for less animation is honoured in CSS as well as in
+ * Motion, so a CSS-driven entrance still respects it.
+ */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

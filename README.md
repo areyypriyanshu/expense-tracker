@@ -167,6 +167,20 @@ The notification prompt is asked exactly once: the choice is recorded when the p
 
 ---
 
+## 🌐 Website
+
+A public site that presents the app and links to the APK hosted on GitHub Releases. It lives in [`web/`](web/) and is a separate Next.js project with its own `package.json`, so the Android build and the website build never interfere.
+
+```bash
+cd web
+pnpm install
+pnpm dev          # http://localhost:3000
+```
+
+It is entirely static: no backend, no database, no file storage. Release data is read from the GitHub Releases API at build time, with a committed snapshot as the fallback if GitHub is unreachable. Deployment, publishing a new release, and re-capturing screenshots are documented in [`web/README.md`](web/README.md).
+
+---
+
 ## 🚀 Getting Started
 
 ### Prerequisites

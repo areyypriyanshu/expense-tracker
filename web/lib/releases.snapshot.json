@@ -1,0 +1,62 @@
+[
+  {
+    "version": "1.5.0",
+    "tag": "1.5.0",
+    "url": "https://github.com/areyypriyanshu/expense-tracker/releases/download/1.5.0/expense-tracker.apk",
+    "sizeBytes": 22061048,
+    "downloadCount": 4,
+    "publishedAt": "2026-09-27T14:56:09Z",
+    "prerelease": true,
+    "draft": false
+  },
+  {
+    "version": "1.0.4",
+    "tag": "v1.0.4",
+    "url": "https://github.com/areyypriyanshu/expense-tracker/releases/download/v1.0.4/expense-tracker.apk",
+    "sizeBytes": 22077432,
+    "downloadCount": 0,
+    "publishedAt": "2026-09-26T15:01:05Z",
+    "prerelease": true,
+    "draft": false
+  },
+  {
+    "version": "1.0.3",
+    "tag": "v1.0.3",
+    "url": "https://github.com/areyypriyanshu/expense-tracker/releases/download/v1.0.3/expense-tracker.apk",
+    "sizeBytes": 22044664,
+    "downloadCount": 0,
+    "publishedAt": "2026-09-26T07:13:18Z",
+    "prerelease": true,
+    "draft": false
+  },
+  {
+    "version": "1.0.2",
+    "tag": "v1.0.2",
+    "url": "https://github.com/areyypriyanshu/expense-tracker/releases/download/v1.0.2/expense-tracker.apk",
+    "sizeBytes": 21158462,
+    "downloadCount": 0,
+    "publishedAt": "2026-09-25T18:54:29Z",
+    "prerelease": true,
+    "draft": false
+  },
+  {
+    "version": "1.0.1",
+    "tag": "v1.0.1",
+    "url": "https://github.com/areyypriyanshu/expense-tracker/releases/download/v1.0.1/Expense.Tracker.apk",
+    "sizeBytes": 62067646,
+    "downloadCount": 2,
+    "publishedAt": "2026-09-21T09:03:08Z",
+    "prerelease": true,
+    "draft": false
+  },
+  {
+    "version": "1.0.0",
+    "tag": "v1.0.0",
+    "url": "https://github.com/areyypriyanshu/expense-tracker/releases/download/v1.0.0/expense-tracker.apk",
+    "sizeBytes": 18740581,
+    "downloadCount": 3,
+    "publishedAt": "2026-06-23T19:12:37Z",
+    "prerelease": true,
+    "draft": false
+  }
+]

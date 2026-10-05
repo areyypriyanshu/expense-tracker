@@ -21,6 +21,18 @@ build/
 .externalNativeBuild/
 .cxx/
 
+# ── Website (web/) ────────────────────────────────────────────────────────
+# Dependencies and build output. The screenshots under web/public/screens/
+# are deliberately NOT ignored: they are committed, because they are the real
+# captures the site serves and a fresh clone should render without an emulator.
+web/node_modules/
+web/.next/
+web/.env.local
+web/.env*.local
+web/*.tsbuildinfo
+web/test-results/
+web/playwright-report/
+
 # Heap dumps from an OOM or a debugger session
 *.hprof
 

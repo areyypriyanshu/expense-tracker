@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <title>Expense Tracker</title>
+  <circle cx="12" cy="12" r="12" fill="#0F3D34" />
+  <path d="M7.5 9.75h9M7.5 14.25h9" stroke="#FAF8F2" stroke-width="1.75" stroke-linecap="round" />
+</svg>
