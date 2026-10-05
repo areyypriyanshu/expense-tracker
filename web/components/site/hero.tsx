@@ -94,7 +94,9 @@ const features = [
     icon: HandCoins,
     title: "UPI messages become expenses",
     body: "Read transaction SMS on the phone, pull out the amount, merchant and reference, and file it under a category the words suggest.",
-    span: "lg:col-span-2 lg:row-span-2",
+    // Two columns wide, one row tall. The trace visual is short, so a row
+    // span would leave a hole in the middle of the card on desktop.
+    span: "lg:col-span-2",
     visual: "trace" as const,
   },
   {
@@ -166,7 +168,14 @@ function FeatureCell({
       </span>
 
       <h3 className="mt-5 text-xl font-medium tracking-tight text-ink">{title}</h3>
-      <p className="mt-3 flex-1 leading-relaxed text-ink-muted">{body}</p>
+      <p className="mt-3 leading-relaxed text-ink-muted">{body}</p>
+
+      {/* The flex-1 spacer. A grid row stretches every card to the height of
+          the tallest one in that row, and the extra space has to go somewhere.
+          Placing it after the last content element pushes the card's content
+          to the top and the empty band to the bottom, which is the only
+          position that reads as breathing room rather than a layout bug. */}
+      <div className="mt-3 flex-1" aria-hidden="true" />
 
       {/* Two cells carry a visual, so the grid is not five identical text
           boxes. The others end at the paragraph rather than padding out with
