@@ -105,20 +105,34 @@ export function Install({ latest }: { latest: Release | null }) {
             "Download". Everywhere else says "See all releases". One label per
             intent. */}
         <Reveal delay={0.14}>
-          <div className="mt-12 flex flex-wrap items-center gap-5">
-            {latest ? (
-              <DownloadButton
-                href={latest.url}
-                version={latest.version}
-                size={formatBytes(latest.sizeBytes)}
-              >
-                Download APK
-              </DownloadButton>
-            ) : null}
+          <div className="mt-12 flex flex-col gap-5">
+            <div className="flex flex-wrap items-center gap-5">
+              {latest ? (
+                <DownloadButton
+                  href={latest.url}
+                  version={latest.version}
+                  size={formatBytes(latest.sizeBytes)}
+                >
+                  Download APK
+                </DownloadButton>
+              ) : null}
 
-            <p className="inline-flex items-center gap-2 text-[14px] text-ink-muted">
-              <WarningCircle size={16} weight="duotone" aria-hidden="true" />
-              Only install from this page or the repository releases.
+              <p className="inline-flex items-center gap-2 text-[14px] text-ink-muted">
+                <WarningCircle size={16} weight="duotone" aria-hidden="true" />
+                Only install from this page or the repository.
+              </p>
+            </div>
+
+            <p className="max-w-[68ch] text-[14px] text-ink-muted border-t border-hairline pt-5">
+              <strong>Stuck at 100% (22.06 MB)?</strong> Android security scans often hang on APKs. If
+              direct download fails, please open the{" "}
+              <Link
+                href={`${repo.url}/releases`}
+                className="text-green underline decoration-green/30 underline-offset-4"
+              >
+                GitHub Releases page
+              </Link>{" "}
+              and download directly from there.
             </p>
           </div>
         </Reveal>
