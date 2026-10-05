@@ -171,6 +171,8 @@ The notification prompt is asked exactly once: the choice is recorded when the p
 
 A public site that presents the app and links to the APK hosted on GitHub Releases. It lives in [`web/`](web/) and is a separate Next.js project with its own `package.json`, so the Android build and the website build never interfere.
 
+**Live at [trackmyxpense.in](https://www.trackmyxpense.in)**
+
 ```bash
 cd web
 pnpm install
@@ -178,6 +180,43 @@ pnpm dev          # http://localhost:3000
 ```
 
 It is entirely static: no backend, no database, no file storage. Release data is read from the GitHub Releases API at build time, with a committed snapshot as the fallback if GitHub is unreachable. Deployment, publishing a new release, and re-capturing screenshots are documented in [`web/README.md`](web/README.md).
+
+### Checks
+
+```bash
+cd web
+pnpm test         # 43 unit tests, no network required
+pnpm lint
+pnpm typecheck
+pnpm build
+```
+
+### Screenshots
+
+The screenshots on the site are real captures from the emulator. They are committed under [`web/public/screens/`](web/public/screens/), so a fresh clone renders correctly without needing an emulator.
+
+The app seeds its categories but no transactions, so a fresh install shows an empty dashboard. `pnpm seed` loads a month of realistic transactions into the emulator before capturing, dated relative to today so the figures stay correct when the month rolls over:
+
+```bash
+~/Library/Android/sdk/emulator/emulator -avd Pixel_10 -no-snapshot -no-boot-anim &
+cd web
+pnpm seed && pnpm capture
+```
+
+> **Note:** both scripts switch the emulator to three-button navigation for the run. With gesture navigation on, a tap near the bottom of the screen is read as a swipe towards home, which leaves the app's navigation bar untappable.
+
+### Deploying
+
+Push to `main` and Vercel rebuilds automatically. No manual step:
+
+```bash
+cd web
+pnpm test && pnpm build     # catch problems before they reach production
+cd ..
+git add web .gitignore README.md
+git commit -m "Describe the change"
+git push                    # vercel deploys this in about a minute
+```
 
 ---
 

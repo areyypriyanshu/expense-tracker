@@ -25,13 +25,29 @@ build/
 # Dependencies and build output. The screenshots under web/public/screens/
 # are deliberately NOT ignored: they are committed, because they are the real
 # captures the site serves and a fresh clone should render without an emulator.
+# For the same reason lib/releases.snapshot.json is committed: it is the
+# fallback the site renders when the GitHub API is unreachable during a build.
 web/node_modules/
 web/.next/
+web/out/
+web/.turbo/
+web/.vercel/
+web/next-env.d.ts
+
+# Local environment. .env.example IS committed, since it is the template that
+# documents which variables the site reads.
 web/.env.local
 web/.env*.local
+
+# Test and type-check caches
 web/*.tsbuildinfo
+web/coverage/
 web/test-results/
 web/playwright-report/
+
+# Nothing under web/storage should ever be committed: that is where a
+# self-hosted instance would keep uploaded files, and it is generated.
+web/storage/
 
 # Heap dumps from an OOM or a debugger session
 *.hprof
