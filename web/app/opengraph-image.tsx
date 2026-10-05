@@ -2,6 +2,33 @@ import { ImageResponse } from "next/og";
 
 import { site } from "@/lib/site";
 
+/**
+ * The app's launcher mark, drawn 1:1 from
+ * app/src/main/res/drawable/ic_launcher_foreground.xml. It is the mark the site
+ * serves at /favicon.svg and shows in the nav and footer, so the card carries
+ * the same one rather than a simplified stand-in.
+ */
+function Mark() {
+  return (
+    <svg width={56} height={56} viewBox="0 0 108 108" style={{ borderRadius: 14, overflow: "hidden" }}>
+      <path fill="#0F3D34" d="M0,0h108v108h-108z" />
+      <path fill="#F6F3EA" d="M54,54m-28,0a28,28 0,1 0,56 0a28,28 0,1 0,-56 0" />
+      <path
+        fill="#D9D3C3"
+        d="M31.5,70c5,7.3 13.2,12 22.5,12c9.3,0 17.5,-4.7 22.5,-12c-5.7,3.3 -13.3,5.2 -22.5,5.2s-16.8,-1.9 -22.5,-5.2z"
+      />
+      <path
+        stroke="#0F3D34"
+        strokeWidth="4.5"
+        strokeLinecap="round"
+        fill="none"
+        d="M42,39h26M42,47h22M42,39c9,0 14,4 14,10.5c0,7 -5.2,11 -14,11l19,18"
+      />
+      <path fill="#DFAF3F" d="M70,38m-4,0a4,4 0,1 0,8 0a4,4 0,1 0,-8 0" />
+    </svg>
+  );
+}
+
 export const alt = `${site.name}: ${site.tagline}`;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
@@ -30,26 +57,7 @@ export default function OpenGraphImage() {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-          <div
-            style={{
-              width: 56,
-              height: 56,
-              borderRadius: 28,
-              backgroundColor: "#0F3D34",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <div
-              style={{
-                width: 28,
-                height: 4,
-                backgroundColor: "#FAF8F2",
-                borderRadius: 2,
-              }}
-            />
-          </div>
+          <Mark />
           <div style={{ fontSize: 30, color: "#69736E" }}>{site.name}</div>
         </div>
 
