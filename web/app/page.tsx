@@ -1,4 +1,3 @@
-import { Footer, Nav } from "@/components/site/nav";
 import { Features, Hero } from "@/components/site/hero";
 import { Install } from "@/components/site/install";
 import { Privacy } from "@/components/site/privacy";
@@ -15,20 +14,16 @@ export default async function HomePage() {
 
   return (
     <>
-      <Nav />
-      <main id="main">
-        {latest ? null : <NoRelease />}
+      {latest ? null : <NoRelease />}
 
-        <Hero latest={latest} />
-        <Features />
-        <Screens />
-        <Privacy />
-        <Install latest={latest} />
-        <Releases releases={releases} />
+      <Hero latest={latest} />
+      <Features />
+      <Screens />
+      <Privacy />
+      <Install latest={latest} />
+      <Releases releases={releases} />
 
-        {latest ? <StructuredData latest={latest} /> : null}
-      </main>
-      <Footer />
+      {latest ? <StructuredData latest={latest} /> : null}
     </>
   );
 }

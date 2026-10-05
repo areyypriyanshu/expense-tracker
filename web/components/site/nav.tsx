@@ -18,10 +18,10 @@ export function Nav() {
   // The menu links to the section, which is what a person on the homepage would
   // expect to see first.
   const links = [
-    { href: "#app", label: "App" },
-    { href: "#privacy", label: "Privacy" },
-    { href: "#install", label: "Install" },
-    { href: "#releases", label: "Releases" },
+    { href: "/#app", label: "App" },
+    { href: "/#privacy", label: "Privacy" },
+    { href: "/#install", label: "Install" },
+    { href: "/#releases", label: "Releases" },
     { href: "/feedback", label: "Feedback" },
   ];
 
@@ -63,12 +63,12 @@ export function Nav() {
           ))}
         </ul>
 
-        <a
-          href="#install"
+        <Link
+          href="/#install"
           className="hidden rounded-lg bg-green px-4 py-2 text-[14px] font-medium text-white transition-colors duration-200 hover:bg-green-hover md:inline-flex"
         >
           Download
-        </a>
+        </Link>
 
         {/* Mobile: a native disclosure, no JS. It is a real <details>, so it
             is keyboard operable and works with JavaScript disabled. */}
@@ -95,13 +95,13 @@ export function Nav() {
               </li>
             ))}
             <li className="mt-1 border-t border-hairline-soft px-4 pt-3 pb-2">
-              <a
-                href="#install"
+              <Link
+                href="/#install"
                 onClick={close}
                 className="block rounded-lg bg-green px-4 py-2.5 text-center text-[14px] font-medium text-white"
               >
                 Download
-              </a>
+              </Link>
             </li>
           </ul>
         </details>

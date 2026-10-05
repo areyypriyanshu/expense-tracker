@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { Footer, Nav } from "@/components/site/nav";
 import { Reveal } from "@/components/ui/reveal";
 import { app, localData, permissions, repo } from "@/lib/site";
 
@@ -14,10 +13,8 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <>
-      <Nav />
-      <main id="main" className="py-20 md:py-24">
-        <div className="mx-auto max-w-[760px] px-5 md:px-8">
+    <div className="py-20 md:py-24">
+      <div className="mx-auto max-w-[760px] px-5 md:px-8">
           <Reveal>
             <h1 className="text-4xl font-semibold tracking-tighter text-balance text-ink md:text-5xl">
               Privacy
@@ -114,9 +111,7 @@ export default function PrivacyPage() {
               </Link>
             </section>
           </Reveal>
-        </div>
-      </main>
-      <Footer />
-    </>
+      </div>
+    </div>
   );
 }

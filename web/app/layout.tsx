@@ -5,6 +5,7 @@ import { GeistSans } from "geist/font/sans";
 import "./globals.css";
 
 import { site } from "@/lib/site";
+import { Nav, Footer } from "@/components/site/nav";
 
 export const metadata: Metadata = {
   metadataBase: new URL(site.url),
@@ -56,15 +57,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`}>
       <body className="min-h-[100dvh] antialiased">
-        {/* Keyboard users land here first. Visually hidden until focused,
-            which is the only way a skip link should behave. */}
         <a
           href="#main"
           className="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-100 focus:rounded-lg focus:bg-green focus:px-4 focus:py-2.5 focus:text-white"
         >
           Skip to content
         </a>
-        {children}
+        <Nav />
+        <main id="main">{children}</main>
+        <Footer />
       </body>
     </html>
   );
