@@ -6,7 +6,6 @@ import "./globals.css";
 
 import { site } from "@/lib/site";
 import { Nav, Footer } from "@/components/site/nav";
-import { InAppWarning } from "@/components/site/in-app-warning";
 
 export const metadata: Metadata = {
   metadataBase: new URL(site.url),
@@ -65,7 +64,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           Skip to content
         </a>
         <Nav />
-        <InAppWarning />
         <main id="main">{children}</main>
         <Footer />
       </body>
