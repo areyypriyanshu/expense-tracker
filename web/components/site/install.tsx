@@ -77,8 +77,9 @@ export function Install({ latest }: { latest: Release | null }) {
                 <p className="mt-2 max-w-[68ch] leading-relaxed text-ink-muted">
                   Android flags any app that did not come through the Play Store, including this one.
                   The warning is expected and is not a sign of a problem. Choose Install anyway to
-                  continue. If you would rather have an app reviewed before it lands on your phone,
-                  the source is public and every permission it declares is listed on this page.
+                  continue. If Chrome pauses or gets stuck at 100% (22.06 MB), it is Android Safe
+                  Browsing scanning the file: check your notification shade or Chrome Downloads and tap{" "}
+                  <strong>Keep</strong> or <strong>Download anyway</strong> to finish saving it.
                 </p>
 
                 <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-3">
