@@ -207,7 +207,7 @@ function ReceiptShot() {
     <div className="mt-6 overflow-hidden rounded-lg border border-hairline-soft">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src="/screens/07-receipt.png"
+        src="/screens/06-receipt.png"
         alt="A receipt being scanned, with the total extracted from the paper."
         className="h-28 w-full object-cover object-top"
         loading="lazy"

@@ -80,7 +80,7 @@ const screens = [
     steps: [{ kind: "nav", index: 3 }],
   },
   {
-    file: "09-settings.png",
+    file: "08-settings.png",
     label: "settings",
     steps: [{ kind: "nav", index: 4 }],
   },
@@ -90,7 +90,7 @@ const screens = [
     steps: [{ kind: "nav", index: 4 }, { kind: "text", contains: "Recurring Expenses" }],
   },
   {
-    file: "08-assistant.png",
+    file: "07-assistant.png",
     label: "assistant",
     steps: [{ kind: "nav", index: 4 }, { kind: "text", contains: "Finance Assistant Chatbot" }],
   },

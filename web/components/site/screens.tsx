@@ -33,11 +33,11 @@ const screens = [
     alt: "Receipt scanning screen with the camera viewfinder and the extracted total.",
   },
   {
-    src: "/screens/08-assistant.png",
+    src: "/screens/07-assistant.png",
     alt: "The finance assistant screen with a plain-language question and its answer.",
   },
   {
-    src: "/screens/09-settings.png",
+    src: "/screens/08-settings.png",
     alt: "Settings screen with base currency, budget threshold and data export options.",
   },
 ];
