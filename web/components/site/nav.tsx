@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { useRef } from "react";
 
@@ -8,8 +10,7 @@ import { repo, site } from "@/lib/site";
  * Navigation.
  *
  * One line on desktop at 68px, well under the 80px cap. Mobile collapses to a
- * disclosure menu, which is the only client component on an otherwise static
- * server-rendered header.
+ * disclosure menu.
  */
 export function Nav() {
   // The homepage has a "Releases" section (a timeline of the most recent builds,
@@ -112,18 +113,9 @@ export function Nav() {
 /**
  * The brand mark.
  *
- * Drawn from the app's own launcher icon: a coin with a horizontal slot, in
- * the app's primary green. It is the one hand-drawn SVG on the site, and it is
- * a logo rather than an icon, which is why it is not sourced from the icon
- * library the interface uses.
- */
-/**
- * The brand mark.
- *
  * The app's launcher icon, redrawn 1:1 from
- * app/src/main/res/drawable/ic_launcher_foreground.xml. The same coin, the
- * same shade, the same rupee monogram, so the mark in the browser is the mark
- * on the device rather than a close relative of it.
+ * app/src/main/res/drawable/ic_launcher_foreground.xml. A circular badge,
+ * not a square, so the coin shape is the dominant feature.
  *
  * Hand-drawn because it is a logo, not an interface glyph. The rule against
  * hand-rolled SVG icons applies to UI icons, and a brand mark is the one
@@ -139,7 +131,7 @@ export function Mark({ size = 26 }: { size?: number }) {
       role="img"
       aria-label={`${site.name} logo`}
     >
-      <path fill="#0F3D34" d="M0,0h108v108h-108z" />
+      <circle cx="54" cy="54" r="51" fill="#0F3D34" />
       <path
         fill="#F6F3EA"
         d="M54,54m-28,0a28,28 0,1 0,56 0a28,28 0,1 0,-56 0"
