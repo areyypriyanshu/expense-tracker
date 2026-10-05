@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { useRef } from "react";
 
 import { Reveal } from "@/components/ui/reveal";
 import { repo, site } from "@/lib/site";
@@ -11,13 +12,27 @@ import { repo, site } from "@/lib/site";
  * server-rendered header.
  */
 export function Nav() {
+  // The homepage has a "Releases" section (a timeline of the most recent builds,
+  // with a link to the full history) and a separate /releases page (the full list).
+  // The menu links to the section, which is what a person on the homepage would
+  // expect to see first.
   const links = [
     { href: "#app", label: "App" },
     { href: "#privacy", label: "Privacy" },
     { href: "#install", label: "Install" },
-    { href: "/releases", label: "Releases" },
+    { href: "#releases", label: "Releases" },
     { href: "/feedback", label: "Feedback" },
   ];
+
+  // A <details> element does not close itself when you click a link inside
+  // it. The menu would stay open over whatever you navigate to, and the
+  // next time you open the nav it looks like nothing happened. Tracking the
+  // element and resetting it on click is the fix, and it still works with
+  // JavaScript off, at which point the menu simply does not auto-close.
+  const detailsRef = useRef<HTMLDetailsElement>(null);
+  const close = () => {
+    if (detailsRef.current) detailsRef.current.open = false;
+  };
 
   return (
     <header className="sticky top-0 z-50 border-b border-hairline bg-bone/85 backdrop-blur-md">
@@ -56,7 +71,7 @@ export function Nav() {
 
         {/* Mobile: a native disclosure, no JS. It is a real <details>, so it
             is keyboard operable and works with JavaScript disabled. */}
-        <details className="group md:hidden">
+        <details ref={detailsRef} className="group md:hidden">
           <summary className="flex cursor-pointer list-none items-center rounded-md border border-hairline px-3 py-1.5 text-[14px] text-ink marker:hidden">
             Menu
             <span
@@ -71,6 +86,7 @@ export function Nav() {
               <li key={link.href}>
                 <Link
                   href={link.href}
+                  onClick={close}
                   className="block px-4 py-2.5 text-[15px] text-ink transition-colors hover:bg-wash"
                 >
                   {link.label}
@@ -80,6 +96,7 @@ export function Nav() {
             <li className="mt-1 border-t border-hairline-soft px-4 pt-3 pb-2">
               <a
                 href="#install"
+                onClick={close}
                 className="block rounded-lg bg-green px-4 py-2.5 text-center text-[14px] font-medium text-white"
               >
                 Download
