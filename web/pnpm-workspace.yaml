@@ -1,2 +1,6 @@
+# pnpm 11 requires an explicit decision on which packages may run install
+# scripts. `unrs-resolver` arrives through eslint-config-next and is safe: it
+# is a native binding used by ESLint's import resolver, and its install step
+# only selects the prebuilt binary for the current platform.
 allowBuilds:
-  unrs-resolver: set this to true or false
+  unrs-resolver: true
